@@ -22,7 +22,7 @@ function StudioPage() {
 
   return (
     <div className="relative min-h-screen bg-background text-foreground">
-      <header className="absolute left-0 right-0 top-0 z-50 flex h-16 items-center justify-between border-b border-border bg-background/90 px-6 backdrop-blur-sm">
+      <header className="absolute left-0 right-0 top-0 z-50 grid h-16 grid-cols-[auto_1fr_auto] items-center border-b border-border bg-background/90 px-6 backdrop-blur-sm">
         <Link
           to="/dashboard"
           className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -47,5 +47,6 @@ function StudioPage() {
         {/* ANTIGRAVITY ENGINE MOUNT POINT - DO NOT ALTER UI STRUCTURE */}
       </main>
     </div>
+
   );
 }
