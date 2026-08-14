@@ -161,59 +161,6 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
     };
   }, [projectId, assets, camera, shots, sceneSettings, totalDuration]);
 
-  // ─── KANTO TEXT ENGINE PLAYHEAD & TIMELINE SYNCHRONIZATION ──────────────────
-  useEffect(() => {
-    const currentSec = (playbackProgress || 0) * (totalDuration || 10);
-    useEngineStore.getState().setCurrentTime(currentSec);
-    useEngineStore.getState().setTotalDuration(totalDuration || 10);
-    useEngineStore.getState().setIsPlaying(isPlaying);
-  }, [playbackProgress, totalDuration, isPlaying]);
-
-  // Restore saved text layers from project
-  useEffect(() => {
-    if (!projectId) return;
-    try {
-      const project = getProject(projectId);
-      if (project && Array.isArray(project.textLayers) && project.textLayers.length > 0) {
-        useEngineStore.getState().importData(project.textLayers);
-      }
-    } catch (e) {
-      console.error('[StudioEngine] Failed to restore text layers:', e);
-    }
-  }, [projectId]);
-
-  // Auto-save text layers when modified
-  useEffect(() => {
-    const unsub = useEngineStore.subscribe((state) => {
-      if (!projectId) return;
-      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-      autoSaveTimerRef.current = setTimeout(() => {
-        try {
-          saveProject({
-            id: projectId,
-            elements: assets,
-            textLayers: state.layers,
-            assets: assets,
-            camera: camera,
-            shots: shots,
-            timeline: {
-              shots: shots,
-              duration: totalDuration
-            },
-            sceneSettings: sceneSettings
-          });
-          if (typeof onSaveStatusChange === 'function') {
-            onSaveStatusChange('Auto-saved');
-          }
-        } catch (err) {
-          console.error('[StudioEngine] Auto-save text layers error:', err);
-        }
-      }, 500);
-    });
-
-    return () => unsub();
-  }, [projectId, assets, camera, shots, sceneSettings, totalDuration]);
-
   // View Mode: 'director' vs 'camera'
   const [viewMode, setViewMode] = useState('director');
 
@@ -399,6 +346,59 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
   };
+
+  // ─── KANTO TEXT ENGINE PLAYHEAD & TIMELINE SYNCHRONIZATION ──────────────────
+  useEffect(() => {
+    const currentSec = (playbackProgress || 0) * (totalDuration || 10);
+    useEngineStore.getState().setCurrentTime(currentSec);
+    useEngineStore.getState().setTotalDuration(totalDuration || 10);
+    useEngineStore.getState().setIsPlaying(isPlaying);
+  }, [playbackProgress, totalDuration, isPlaying]);
+
+  // Restore saved text layers from project
+  useEffect(() => {
+    if (!projectId) return;
+    try {
+      const project = getProject(projectId);
+      if (project && Array.isArray(project.textLayers) && project.textLayers.length > 0) {
+        useEngineStore.getState().importData(project.textLayers);
+      }
+    } catch (e) {
+      console.error('[StudioEngine] Failed to restore text layers:', e);
+    }
+  }, [projectId]);
+
+  // Auto-save text layers when modified
+  useEffect(() => {
+    const unsub = useEngineStore.subscribe((state) => {
+      if (!projectId) return;
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = setTimeout(() => {
+        try {
+          saveProject({
+            id: projectId,
+            elements: assets,
+            textLayers: state.layers,
+            assets: assets,
+            camera: camera,
+            shots: shots,
+            timeline: {
+              shots: shots,
+              duration: totalDuration
+            },
+            sceneSettings: sceneSettings
+          });
+          if (typeof onSaveStatusChange === 'function') {
+            onSaveStatusChange('Auto-saved');
+          }
+        } catch (err) {
+          console.error('[StudioEngine] Auto-save text layers error:', err);
+        }
+      }, 500);
+    });
+
+    return () => unsub();
+  }, [projectId, assets, camera, shots, sceneSettings, totalDuration]);
 
   // Invalidate frame cache whenever scene assets or shots are updated
   useEffect(() => {
