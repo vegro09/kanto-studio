@@ -20,8 +20,12 @@ export const FontsPanel: React.FC = () => {
       font: {
         family: font.family,
         size: activeLayer?.font.size || 72,
-        isCustom: font.category === 'custom',
+        isCustom: font.category === 'custom' || font.category === 'arabic',
       },
+      style: {
+        ...(activeLayer?.style || {}),
+        fontFamily: font.family
+      }
     });
   };
 
@@ -37,7 +41,7 @@ export const FontsPanel: React.FC = () => {
       handleFontSelect(customFont);
       confetti({ particleCount: 30, spread: 50, origin: { y: 0.8, x: 0.85 } });
     } catch (err) {
-      alert('Failed to load font. Please ensure you selected a valid font file (.ttf, .otf, .woff)');
+      alert('Failed to load font. Please ensure you selected a valid font file (.ttf, .otf, .woff, .woff2)');
     } finally {
       setIsUploading(false);
       e.target.value = '';

@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { DEFAULT_DEMO_PROJECT } from '../data/presetAssets';
 import { getProject, saveProject } from '../../lib/projectStore';
-import { useEngineStore } from '../../modules/KantoTextEngine';
+import { useEngineStore, FontManager } from '../../modules/KantoTextEngine';
 
 export default function StudioEngine({ projectId, onSaveStatusChange }) {
   // Core Application State - Restored from localStorage on initial mount
@@ -179,7 +179,17 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
       return [];
     }
   });
-  const [customFonts, setCustomFonts] = useState([]);
+  const [customFonts, setCustomFonts] = useState(() => {
+    try {
+      return FontManager.getCustomFonts();
+    } catch (e) {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    setCustomFonts([...FontManager.getCustomFonts()]);
+  }, []);
   const [isPanMode, setIsPanMode] = useState(false);
   const [isTimelineVisible, setIsTimelineVisible] = useState(true);
   const [isRemovingBg, setIsRemovingBg] = useState(false);
@@ -247,76 +257,34 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
     }
   };
 
-  // ROBUST CUSTOM FONTS PIPELINE (FileReader + FontFace API + Dual @font-face CSS Injection)
-  const handleUploadCustomFont = (file) => {
+  // ROBUST UNIFIED CUSTOM FONTS PIPELINE (Base64 Data URL + FontFace API + localStorage Persistence)
+  const handleUploadCustomFont = async (file) => {
     if (!file) return;
 
-    const rawName = file.name.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_\-\s]/g, "").trim() || 'CustomFont';
-    const fontName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+    try {
+      const customFont = await FontManager.loadCustomFontFile(file);
+      setCustomFonts([...FontManager.getCustomFonts()]);
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const buffer = e.target.result;
-      const blobUrl = URL.createObjectURL(file);
-
-      try {
-        // 1. Browser Native FontFace API Loading
-        const font = new FontFace(fontName, buffer);
-        const loadedFont = await font.load();
-        document.fonts.add(loadedFont);
-
-        // 2. Dual @font-face Style Injection for Canvas2D Engine Compatibility
-        const styleId = `font-style-${fontName.toLowerCase()}`;
-        if (!document.getElementById(styleId)) {
-          const style = document.createElement('style');
-          style.id = styleId;
-          style.textContent = `
-            @font-face {
-              font-family: '${fontName}';
-              src: url('${blobUrl}');
-              font-weight: normal;
-              font-style: normal;
-              font-display: swap;
-            }
-          `;
-          document.head.appendChild(style);
-        }
-
-        setCustomFonts((prev) => {
-          if (prev.some((f) => f.name === fontName)) return prev;
-          return [...prev, { name: fontName, fileName: file.name, blobUrl }];
-        });
-
-        showToast(`Successfully loaded custom font "${fontName}"`, 'success');
-      } catch (err) {
-        console.warn("FontFace load warning, using dynamic CSS font-face injection:", err);
-        try {
-          const styleId = `font-style-${fontName.toLowerCase()}`;
-          const style = document.createElement('style');
-          style.id = styleId;
-          style.textContent = `
-            @font-face {
-              font-family: '${fontName}';
-              src: url('${blobUrl}');
-              font-weight: normal;
-              font-style: normal;
-            }
-          `;
-          document.head.appendChild(style);
-
-          setCustomFonts((prev) => {
-            if (prev.some((f) => f.name === fontName)) return prev;
-            return [...prev, { name: fontName, fileName: file.name, blobUrl }];
+      // Immediately update currently selected element & KantoTextEngine layer
+      if (selectedAssetId) {
+        handleUpdateAsset(selectedAssetId, { fontFamily: customFont.family });
+      }
+      const activeLayerId = useEngineStore.getState().selectedLayerId;
+      if (activeLayerId) {
+        const l = useEngineStore.getState().layers.find((layer) => layer.id === activeLayerId);
+        if (l) {
+          useEngineStore.getState().updateLayerById(activeLayerId, {
+            font: { ...(l.font || {}), family: customFont.family },
+            style: { ...(l.style || {}), fontFamily: customFont.family }
           });
-
-          showToast(`Loaded custom font "${fontName}"`, 'success');
-        } catch (fallbackErr) {
-          showToast(`Failed to load font "${file.name}"`, 'error');
         }
       }
-    };
 
-    reader.readAsArrayBuffer(file);
+      showToast(`Successfully loaded & saved custom font "${customFont.name}"`, 'success');
+    } catch (err) {
+      console.error("[StudioEngine] Font upload error:", err);
+      showToast(`Failed to load font "${file.name}"`, 'error');
+    }
   };
 
   const handleSaveToLibrary = (libraryItem) => {
