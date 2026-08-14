@@ -412,7 +412,9 @@ export default function BottomSequencer({
   const iconLanes = renderCategoryLanes((assets || []).filter((a) => isIconElement(a)));
   const imageLanes = renderCategoryLanes((assets || []).filter((a) => a && (a.type === 'image' || a.type === 'background' || a.category === 'Images') && !isIconElement(a)));
   const textLanes = renderDedicatedLanes((assets || []).filter((a) => a && a.type === 'text'));
-  const audioLanes = renderCategoryLanes((assets || []).filter((a) => a && (a.type === 'audio' || a.category === 'Audio')));
+  const audioLanes = renderCategoryLanes((assets || []).filter((a) => a && (a.type === 'audio' || a.category === 'Audio') && !a.isSfx && !a.isFilterFx));
+  const sfxLanes = renderCategoryLanes((assets || []).filter((a) => a && (a.type === 'sfx' || a.isSfx || a.category === 'SFX')));
+  const filterFxLanes = renderCategoryLanes((assets || []).filter((a) => a && (a.type === 'filter_fx' || a.isFilterFx || a.category === 'FILTER_FX')));
 
   return (
     <footer 
@@ -997,11 +999,11 @@ export default function BottomSequencer({
             </div>
           ))}
 
-          {/* TASK 1: MULTI-TRACK AUDIO LANES */}
+          {/* TRACK SECTION 1: VOICE RECORDINGS & MUSIC LANES */}
           {audioLanes.map(({ laneIndex, laneItems }) => (
             <div key={`audio-lane-${laneIndex}`} className="flex items-center relative min-h-[44px]">
               <div className="w-20 text-[10px] font-mono font-bold text-emerald-400 shrink-0 flex items-center gap-1 border-r border-white/10 pr-2">
-                <Music className="w-3 h-3 text-emerald-400" /> AUD {laneIndex + 1}
+                <Music className="w-3 h-3 text-emerald-400" /> REC {laneIndex + 1}
               </div>
               <div 
                 style={{ width: `${safeTotalDuration * pxPerSecond}px` }}
@@ -1037,7 +1039,7 @@ export default function BottomSequencer({
                       )}
                       <div className="flex items-center justify-between w-full z-10">
                         <div className="flex items-center gap-1 truncate">
-                          <Music className="w-3 h-3 text-emerald-300 shrink-0" />
+                          <Mic className="w-3 h-3 text-emerald-300 shrink-0" />
                           <span className="truncate font-semibold">{audio.name}</span>
                         </div>
 
@@ -1062,6 +1064,94 @@ export default function BottomSequencer({
                           color="#34d399" 
                         />
                       </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+
+          {/* TRACK SECTION 2: SOUND EFFECTS (SFX) LANES */}
+          {sfxLanes.map(({ laneIndex, laneItems }) => (
+            <div key={`sfx-lane-${laneIndex}`} className="flex items-center relative min-h-[36px]">
+              <div className="w-20 text-[10px] font-mono font-bold text-cyan-400 shrink-0 flex items-center gap-1 border-r border-white/10 pr-2">
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400" /> SFX {laneIndex + 1}
+              </div>
+              <div 
+                style={{ width: `${safeTotalDuration * pxPerSecond}px` }}
+                className="flex items-center relative min-h-[36px] shrink-0"
+              >
+                {laneItems.map((sfxAsset) => {
+                  const sfxWidth = (sfxAsset.duration || 1.5) * pxPerSecond;
+                  const leftPos = (sfxAsset.startTimeSec || 0) * pxPerSecond;
+
+                  return (
+                    <div
+                      key={sfxAsset.id}
+                      onMouseDown={(e) => handleClipDragStart(e, sfxAsset, 'audio')}
+                      onClick={(e) => {
+                        if (onSelectAsset) onSelectAsset(sfxAsset.id);
+                      }}
+                      style={{ left: `${leftPos}px`, width: `${Math.max(sfxWidth, 75)}px` }}
+                      className="absolute h-9 bg-cyan-950/90 border border-cyan-500/60 text-cyan-200 rounded-xl px-2 py-1 text-[10px] flex items-center justify-between font-mono shadow-md group transition-all hover:border-cyan-300 cursor-grab active:cursor-grabbing truncate"
+                    >
+                      <div className="flex items-center gap-1 truncate z-10">
+                        <Sparkles className="w-3 h-3 text-cyan-300 shrink-0" />
+                        <span className="truncate font-semibold">{sfxAsset.name}</span>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onDeleteAsset) onDeleteAsset(sfxAsset.id);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-rose-400 transition-opacity z-20"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+
+          {/* TRACK SECTION 3: VOICE FILTERS & FX AUTOMATION LANES */}
+          {filterFxLanes.map(({ laneIndex, laneItems }) => (
+            <div key={`filter-fx-lane-${laneIndex}`} className="flex items-center relative min-h-[34px]">
+              <div className="w-20 text-[10px] font-mono font-bold text-purple-400 shrink-0 flex items-center gap-1 border-r border-white/10 pr-2">
+                <Sparkles className="w-3.5 h-3.5 text-purple-400" /> FX {laneIndex + 1}
+              </div>
+              <div 
+                style={{ width: `${safeTotalDuration * pxPerSecond}px` }}
+                className="flex items-center relative min-h-[34px] shrink-0"
+              >
+                {laneItems.map((filterAsset) => {
+                  const filterWidth = (filterAsset.duration || 3.0) * pxPerSecond;
+                  const leftPos = (filterAsset.startTimeSec || 0) * pxPerSecond;
+
+                  return (
+                    <div
+                      key={filterAsset.id}
+                      onMouseDown={(e) => handleClipDragStart(e, filterAsset, 'audio')}
+                      onClick={(e) => {
+                        if (onSelectAsset) onSelectAsset(filterAsset.id);
+                      }}
+                      style={{ left: `${leftPos}px`, width: `${Math.max(filterWidth, 80)}px` }}
+                      className="absolute h-8.5 bg-purple-950/90 border border-purple-500/60 text-purple-200 rounded-xl px-2 py-1 text-[10px] flex items-center justify-between font-mono shadow-md group transition-all hover:border-purple-300 cursor-grab active:cursor-grabbing truncate"
+                    >
+                      <div className="flex items-center gap-1 truncate z-10">
+                        <Sparkles className="w-3 h-3 text-purple-300 shrink-0" />
+                        <span className="truncate font-semibold">{filterAsset.name}</span>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onDeleteAsset) onDeleteAsset(filterAsset.id);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-rose-400 transition-opacity z-20"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
                     </div>
                   );
                 })}

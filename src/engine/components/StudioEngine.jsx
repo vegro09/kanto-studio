@@ -6,6 +6,7 @@ import CameraViewMode from './CameraViewMode';
 import RightPanel from './RightPanel';
 import BottomSequencer from './BottomSequencer';
 import ExportModal from './ExportModal';
+import AudioRecordingStudio from './AudioRecordingStudio';
 import Toast from './Toast';
 import { 
   MousePointer, 
@@ -186,6 +187,51 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
   const [gridType, setGridType] = useState('lines');
   const [toast, setToast] = useState(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isRecordingStudioOpen, setIsRecordingStudioOpen] = useState(false);
+
+  const handleOpenRecordingStudio = () => {
+    setIsRecordingStudioOpen(true);
+  };
+
+  const handleCloseRecordingStudio = () => {
+    setIsRecordingStudioOpen(false);
+  };
+
+  const handleAddSfxTrack = (sfx) => {
+    const playheadSec = (playbackProgress || 0) * (totalDuration || 10);
+    const newSfxAsset = {
+      id: `el_sfx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      name: sfx.name,
+      type: 'sfx',
+      category: 'SFX',
+      isSfx: true,
+      duration: sfx.duration || 1.5,
+      startTimeSec: Math.round(playheadSec * 10) / 10
+    };
+    setAssets((prev) => [...prev, newSfxAsset]);
+    showToast(`Added "${sfx.name}" to SFX Track`, 'success');
+  };
+
+  const handleAddFilterFxTrack = (filterName) => {
+    const playheadSec = (playbackProgress || 0) * (totalDuration || 10);
+    const newFilterAsset = {
+      id: `el_filter_fx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      name: `Filter: ${filterName}`,
+      filterName,
+      type: 'filter_fx',
+      category: 'FILTER_FX',
+      isFilterFx: true,
+      duration: 3.0,
+      startTimeSec: Math.round(playheadSec * 10) / 10
+    };
+    setAssets((prev) => [...prev, newFilterAsset]);
+    showToast(`Added "${filterName}" to Filter FX Track`, 'success');
+  };
+
+  const handleAddRecordedAudioTrack = (recordedAsset) => {
+    setAssets((prev) => [...prev, recordedAsset]);
+    showToast(`Added "${recordedAsset.name}" to Voice Track`, 'success');
+  };
 
   // TASK 4: AI BACKGROUND REMOVAL INTEGRATION (remove.bg REST API)
   const handleRemoveBackground = async (assetId) => {
@@ -1657,6 +1703,10 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
           onAddModularPart={handleAddModularPart}
           playbackProgress={playbackProgress}
           totalDuration={totalDuration}
+          onOpenRecordingStudio={handleOpenRecordingStudio}
+          onAddAudioTrack={handleAddRecordedAudioTrack}
+          onAddSfxTrack={handleAddSfxTrack}
+          onAddFilterFxTrack={handleAddFilterFxTrack}
         />
 
         {/* Floating Edge Toggle Tab - Reopen Right Inspector */}
@@ -1800,6 +1850,14 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
           onToggleViewMode={(mode) => setViewMode(mode)}
         />
       )}
+
+      {/* Audio Recording Studio System Modal */}
+      <AudioRecordingStudio
+        isOpen={isRecordingStudioOpen}
+        onClose={handleCloseRecordingStudio}
+        playheadSec={(playbackProgress || 0) * (totalDuration || 10)}
+        onAddRecordedAudioTrack={handleAddRecordedAudioTrack}
+      />
 
       {/* GPU-Accelerated MP4 Video Export Engine Modal */}
       <ExportModal

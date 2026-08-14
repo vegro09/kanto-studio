@@ -41,6 +41,7 @@ import {
   User
 } from 'lucide-react';
 import ModularCharacterSidebar from './ModularCharacterSidebar';
+import AudioStudioLibrary from './AudioStudioLibrary';
 import { ANIMATION_PRESETS } from '../utils/kineticTypography';
 import { VISUAL_FILTERS } from '../utils/canvasFilters';
 import BezierGraphEditor from './BezierGraphEditor';
@@ -101,7 +102,11 @@ export default function RightPanel({
   onOpenExportModal,
   onAddModularPart,
   playbackProgress = 0,
-  totalDuration = 10
+  totalDuration = 10,
+  onOpenRecordingStudio,
+  onAddAudioTrack,
+  onAddSfxTrack,
+  onAddFilterFxTrack
 }) {
   const { activeLayerId, layers: textEngineLayers, selectLayer } = useEngineStore();
   const activeTextLayer = textEngineLayers.find((l) => l.id === activeLayerId) || null;
@@ -279,6 +284,10 @@ export default function RightPanel({
                 <>
                   <Type className="w-3.5 h-3.5 text-blue-400" /> Text Inspector
                 </>
+              ) : rightPanelTab === 'audio_studio' ? (
+                <>
+                  <Radio className="w-3.5 h-3.5 text-emerald-400" /> Sound & Audio Studio
+                </>
               ) : rightPanelTab === 'character_assembly' ? (
                 <>
                   <User className="w-3.5 h-3.5 text-purple-400" /> Modular Character
@@ -291,7 +300,7 @@ export default function RightPanel({
             </h2>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-mono text-zinc-400 bg-[#2A2529] px-2 py-0.5 rounded-md border border-white/10">
-                {isTextLayerSelected ? 'TEXT OBJECT' : selectedAsset ? (selectedAsset.type === 'modular_body_part' ? 'MODULAR RIG' : selectedAsset.type === 'text' ? 'TEXT' : selectedAsset.type === 'svg' ? 'SVG' : 'ASSET') : selectedShot ? 'SHOT' : 'CAMERA'}
+                {isTextLayerSelected ? 'TEXT OBJECT' : rightPanelTab === 'audio_studio' ? 'AUDIO STUDIO' : selectedAsset ? (selectedAsset.type === 'modular_body_part' ? 'MODULAR RIG' : selectedAsset.type === 'text' ? 'TEXT' : selectedAsset.type === 'svg' ? 'SVG' : 'ASSET') : selectedShot ? 'SHOT' : 'CAMERA'}
               </span>
               {isTextLayerSelected ? (
                 <button
@@ -313,12 +322,12 @@ export default function RightPanel({
             </div>
           </div>
 
-          {/* TWO MAIN MODE TABS (When not in text inspection mode) */}
+          {/* THREE MAIN MODE TABS (When not in text inspection mode) */}
           {!isTextLayerSelected && (
             <div className="flex bg-[#1E191C] p-1 rounded-xl border border-white/10 gap-1">
               <button
                 onClick={() => setRightPanelTab('inspector')}
-                className={`flex-1 py-1 px-2 text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`flex-1 py-1 px-1 text-[10px] font-semibold rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer ${
                   rightPanelTab === 'inspector'
                     ? 'bg-[#F3F0E7] text-[#2A2529] font-bold shadow-xs'
                     : 'text-zinc-400 hover:text-[#F3F0E7]'
@@ -328,15 +337,26 @@ export default function RightPanel({
                 <span>Inspector</span>
               </button>
               <button
+                onClick={() => setRightPanelTab('audio_studio')}
+                className={`flex-1 py-1 px-1 text-[10px] font-semibold rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                  rightPanelTab === 'audio_studio'
+                    ? 'bg-emerald-500 text-black font-bold shadow-xs'
+                    : 'text-emerald-400/80 hover:text-emerald-300'
+                }`}
+              >
+                <Radio className="w-3 h-3" />
+                <span>Audio Studio</span>
+              </button>
+              <button
                 onClick={() => setRightPanelTab('character_assembly')}
-                className={`flex-1 py-1 px-2 text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                className={`flex-1 py-1 px-1 text-[10px] font-semibold rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer ${
                   rightPanelTab === 'character_assembly'
                     ? 'bg-purple-600 text-white font-bold shadow-xs'
                     : 'text-purple-300/70 hover:text-purple-200'
                 }`}
               >
                 <User className="w-3 h-3" />
-                <span>Character Rig</span>
+                <span>Character</span>
               </button>
             </div>
           )}
@@ -354,6 +374,15 @@ export default function RightPanel({
         {isTextLayerSelected ? (
           <div className="flex-1 overflow-hidden h-full flex flex-col bg-[#0c0c0c] w-full">
             <KantoTextInspector />
+          </div>
+        ) : rightPanelTab === 'audio_studio' ? (
+          <div className="flex-1 overflow-hidden h-full flex flex-col bg-[#181416] w-full">
+            <AudioStudioLibrary
+              onAddAudioTrack={onAddAudioTrack}
+              onAddSfxTrack={onAddSfxTrack}
+              onAddFilterFxTrack={onAddFilterFxTrack}
+              onOpenRecordingStudio={onOpenRecordingStudio}
+            />
           </div>
         ) : rightPanelTab === 'character_assembly' ? (
           <div className="flex-1 overflow-y-auto custom-scrollbar">
