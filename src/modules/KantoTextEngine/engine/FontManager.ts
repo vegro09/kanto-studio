@@ -41,88 +41,19 @@ if (typeof document !== 'undefined') {
 class FontManagerClass {
   private customFonts: CustomFontItem[] = [];
 
-  constructor() {
-    this.initSavedCustomFonts();
-  }
-
-  private initSavedCustomFonts() {
-    if (typeof window === 'undefined' || typeof document === 'undefined') return;
-    try {
-      const saved = localStorage.getItem('kanto_custom_fonts');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          parsed.forEach((item: any) => {
-            if (item.name && (item.data || item.url || item.family)) {
-              const fontName = item.family || item.name;
-              const fontData = item.data || item.url;
-              if (fontData) {
-                try {
-                  const fontFace = new FontFace(fontName, `url(${fontData})`);
-                  fontFace.load().then((loaded) => {
-                    document.fonts.add(loaded);
-                  }).catch((err) => console.warn('[FontManager] FontFace load error:', fontName, err));
-
-                  const styleId = `font-style-${fontName.toLowerCase()}`;
-                  if (!document.getElementById(styleId)) {
-                    const style = document.createElement('style');
-                    style.id = styleId;
-                    style.textContent = `
-                      @font-face {
-                        font-family: '${fontName}';
-                        src: url('${fontData}');
-                        font-weight: normal;
-                        font-style: normal;
-                        font-display: swap;
-                      }
-                    `;
-                    document.head.appendChild(style);
-                  }
-                } catch (e) {
-                  console.warn('[FontManager] Error initializing font:', fontName, e);
-                }
-              }
-              const isArabic = this.isArabicString(item.name);
-              this.registerCustomFont({
-                name: item.name,
-                family: fontName,
-                category: isArabic ? 'arabic' : 'custom',
-                sampleText: isArabic ? 'خط مخصص جديد' : 'Custom Loaded Font',
-                data: fontData
-              });
-            }
-          });
-        }
-      }
-    } catch (err) {
-      console.error('[FontManager] Error reading saved custom fonts:', err);
-    }
-  }
-
-  public registerCustomFont(item: CustomFontItem): void {
-    if (!this.customFonts.some((f) => f.family === item.family)) {
-      this.customFonts.push(item);
-    }
-  }
-
   public async loadCustomFontFile(file: File): Promise<CustomFontItem> {
     const cleanName = file.name.replace(/\.[^/.]+$/, '').trim();
     const rawName = cleanName.replace(/[^a-zA-Z0-9_\-\s]/g, '_');
     const fontName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+    const arrayBuffer = await file.arrayBuffer();
 
-    const base64Data = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target?.result as string);
-      reader.onerror = (e) => reject(e);
-      reader.readAsDataURL(file);
-    });
-
-    // 1. Native FontFace API loading via Base64 Data URL
-    const fontFace = new FontFace(fontName, `url(${base64Data})`);
+    // 1. Native FontFace API loading
+    const fontFace = new FontFace(fontName, arrayBuffer);
     const loadedFace = await fontFace.load();
     document.fonts.add(loadedFace);
 
     // 2. Dual @font-face style tag injection for Canvas context rendering
+    const blobUrl = URL.createObjectURL(file);
     const styleId = `font-style-${fontName.toLowerCase()}`;
     if (!document.getElementById(styleId)) {
       const style = document.createElement('style');
@@ -130,7 +61,7 @@ class FontManagerClass {
       style.textContent = `
         @font-face {
           font-family: '${fontName}';
-          src: url('${base64Data}');
+          src: url('${blobUrl}');
           font-weight: normal;
           font-style: normal;
           font-display: swap;
@@ -145,23 +76,11 @@ class FontManagerClass {
       family: fontName,
       category: isArabicSample ? 'arabic' : 'custom',
       sampleText: isArabicSample ? 'خط مخصص جديد' : 'Custom Loaded Font',
-      data: base64Data
     };
 
-    this.registerCustomFont(customItem);
-
-    // 3. Save to localStorage under 'kanto_custom_fonts'
-    try {
-      const existingSaved = localStorage.getItem('kanto_custom_fonts');
-      let fontList: any[] = existingSaved ? JSON.parse(existingSaved) : [];
-      if (!Array.isArray(fontList)) fontList = [];
-      fontList = fontList.filter((f: any) => f.name !== cleanName && f.family !== fontName);
-      fontList.push({ name: cleanName, family: fontName, data: base64Data });
-      localStorage.setItem('kanto_custom_fonts', JSON.stringify(fontList));
-    } catch (storageErr) {
-      console.error('[FontManager] Storage error:', storageErr);
+    if (!this.customFonts.some((f) => f.family === fontName)) {
+      this.customFonts.push(customItem);
     }
-
     return customItem;
   }
 

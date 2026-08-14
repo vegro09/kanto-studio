@@ -52,6 +52,11 @@ export class CanvasRenderer {
     this.activeLayerId = id;
   }
 
+  public clearCache() {
+    this.staticCache.clear();
+    this.cachedBoxes.clear();
+  }
+
   public setCallbacks(
     onTransform: (layerId: string, transform: { x: number; y: number; scale: number; rotation: number }) => void,
     onSelect: (layerId: string | null) => void

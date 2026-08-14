@@ -547,13 +547,19 @@ export const useEngineStore = create<EngineState>((set, get) => ({
   },
 
   uploadCustomFont: async (file: File) => {
-    const item = await FontManager.loadCustomFontFile(file);
-    const activeId = get().activeLayerId;
-    if (activeId) {
-      get().updateActiveLayer({
-        font: { family: item.family, isCustom: true, size: 72 },
-      });
+    try {
+      const item = await FontManager.loadCustomFontFile(file);
+      const activeId = get().activeLayerId;
+      if (activeId) {
+        get().updateActiveLayer({
+          font: { family: item.family, isCustom: true, size: get().layers.find(l => l.id === activeId)?.font.size || 72 },
+          style: { ...(get().layers.find(l => l.id === activeId)?.style || {}), fontFamily: item.family } as any
+        });
+      }
+      return item;
+    } catch (err) {
+      console.error("[useEngineStore] Failed to upload custom font:", err);
+      throw err;
     }
-    return item;
   },
 }));
