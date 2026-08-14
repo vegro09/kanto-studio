@@ -819,6 +819,24 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
     img.src = fileOrBlobUrl;
   };
 
+  // AUDIO & VOICE-OVER SUITE TRACK HANDLERS
+  const handleAddAudioTrack = (audioAsset) => {
+    recordHistory();
+    const currentPlayheadSec = Math.round(((playbackProgress || 0) * (totalDuration || 10)) * 100) / 100;
+    const startSec = (typeof audioAsset.startTimeSec === 'number' && Number.isFinite(audioAsset.startTimeSec))
+      ? audioAsset.startTimeSec
+      : currentPlayheadSec;
+
+    const newAudio = {
+      ...audioAsset,
+      startTimeSec: startSec,
+      duration: audioAsset.duration || 5.0
+    };
+
+    setAssets((prev) => [...prev, newAudio]);
+    showToast(`Added "${newAudio.name}" to Audio track at playhead (${startSec.toFixed(1)}s)`, 'success');
+  };
+
   // Standalone Audio Clip Razor Split Engine
   const handleSplitAudioClip = (assetId, playheadTimeSec) => {
     recordHistory();
