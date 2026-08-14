@@ -626,43 +626,6 @@ export default function WorkspaceCanvas({
       onDrop={handleDirectCanvasDrop}
       className={`flex-1 relative overflow-hidden bg-[#F3F0E7] select-none z-10 ${activeCursorClass}`}
     >
-      {/* Apple Zoom HUD Overlay */}
-      <div className="absolute top-4 left-4 z-20 flex items-center gap-1.5 bg-[#2A2529]/90 border border-white/10 p-1.5 rounded-xl shadow-xl backdrop-blur-md text-[#F3F0E7]">
-        <button
-          onClick={() => setCanvasView((v) => ({ ...v, scale: Math.max(v.scale - 0.15, 0.1) }))}
-          className="p-1 text-zinc-300 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
-          title="Zoom Out Canvas"
-        >
-          <ZoomOut className="w-3.5 h-3.5" />
-        </button>
-
-        <button
-          onClick={handleResetCanvasView}
-          className="text-[11px] font-mono font-semibold text-[#F3F0E7] hover:text-white px-2 py-0.5 rounded-md hover:bg-white/10 transition-colors"
-          title="Reset Zoom (85%)"
-        >
-          {Math.round(canvasView.scale * 100)}%
-        </button>
-
-        <button
-          onClick={() => setCanvasView((v) => ({ ...v, scale: Math.min(v.scale + 0.15, 5.0) }))}
-          className="p-1 text-zinc-300 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
-          title="Zoom In Canvas"
-        >
-          <ZoomIn className="w-3.5 h-3.5" />
-        </button>
-
-        <div className="h-3 w-px bg-white/15" />
-
-        <button
-          onClick={handleResetCanvasView}
-          className="p-1 text-zinc-300 hover:text-white rounded-lg hover:bg-white/10 transition-colors flex items-center gap-1 text-[10px] font-mono"
-          title="Recenter Viewport"
-        >
-          <Compass className="w-3.5 h-3.5 text-[#F3F0E7]" /> Recenter
-        </button>
-      </div>
-
       {/* SOLID WHITE INFINITE CANVAS WRAPPER */}
       <div
         className={`w-[8000px] h-[8000px] absolute top-0 left-0 transform-origin-top-left transition-transform duration-75 canvas-grid-bg ${textureClass}`}
@@ -672,19 +635,6 @@ export default function WorkspaceCanvas({
           transformOrigin: '0 0'
         }}
       >
-        {/* Stage Bounds Guide */}
-        <div 
-          className="absolute top-[800px] left-[800px] border border-dashed border-[#2A2529]/30 pointer-events-none rounded-2xl shadow-sm"
-          style={{
-            width: `${sceneSettings.width || 3200}px`,
-            height: `${sceneSettings.height || 2400}px`
-          }}
-        >
-          <span className="absolute top-3 left-3 text-[10px] font-mono text-[#2A2529] font-bold uppercase tracking-widest bg-[#F3F0E7]/90 px-2.5 py-1 rounded-md border border-[#2A2529]/20 shadow-xs">
-            STAGE BOUNDS ({sceneSettings.width || 3200} x {sceneSettings.height || 2400} PX)
-          </span>
-        </div>
-
         {/* LAYER 0.5: INTERACTIVE MOTION PATH OVERLAY & NODE DRAGGING (TASK 2) */}
         {sortedAssets.filter((a) => a && a.motionPath && a.motionPath.isPathEnabled && Array.isArray(a.motionPath.pathNodes) && a.motionPath.pathNodes.length > 0).map((asset) => {
           try {
@@ -1143,87 +1093,8 @@ export default function WorkspaceCanvas({
           />
         </div>
 
-        {/* LAYER 2: CLEAN CAMERA VIEWFINDER FRAME (WITH PERFECT PHASE-MATCHING PARITY) */}
-        {(() => {
-          let camX = typeof camera.x === 'number' && Number.isFinite(camera.x) ? camera.x : 0;
-          let camY = typeof camera.y === 'number' && Number.isFinite(camera.y) ? camera.y : 0;
-
-          if (camera.motionPath && camera.motionPath.isPathEnabled) {
-            try {
-              const currentSec = (playbackProgress || 0) * (totalDuration || 10);
-              const clipDuration = Math.max(0.0001, camera.duration || (totalDuration || 10));
-
-              const evaluated = evaluateMotionPathAtTime(
-                camera.motionPath,
-                camera.startTimeSec || 0,
-                clipDuration,
-                currentSec
-              );
-
-              if (evaluated && Number.isFinite(evaluated.x) && Number.isFinite(evaluated.y) && !isNaN(evaluated.x) && !isNaN(evaluated.y)) {
-                const halfW = ((camera.width || 270) * (camera.scale || 1)) / 2;
-                const halfH = ((camera.height || 480) * (camera.scale || 1)) / 2;
-                camX = evaluated.x - halfW;
-                camY = evaluated.y - halfH;
-              }
-            } catch (err) {
-              console.error("Camera Motion Path Evaluation Error:", err);
-            }
-          }
-
-          return (
-            <div
-              ref={viewfinderRef}
-              onMouseDown={handleCameraPointerDown}
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                position: 'absolute',
-                left: `${camX}px`,
-                top: `${camY}px`,
-                width: `${(camera.width || 270) * (camera.scale || 1)}px`,
-                height: `${(camera.height || 480) * (camera.scale || 1)}px`,
-                zIndex: 2000,
-                cursor: camera.isLocked ? 'default' : 'move'
-              }}
-              className="group select-none"
-            >
-          <div
-            className={`w-full h-full relative rounded-xl border-2 transition-all ${
-              isCameraSelected 
-                ? 'border-[#2A2529] ring-4 ring-[#2A2529]/20 shadow-2xl bg-[#2A2529]/5' 
-                : 'border-[#2A2529]/80 shadow-xl bg-[#2A2529]/5 hover:border-[#2A2529]'
-            }`}
-          >
-            {/* Rule of Thirds Overlay Grid */}
-            {camera.showGrid && (
-              <div className="absolute inset-0 pointer-events-none grid grid-cols-3 grid-rows-3">
-                <div className="border-r border-b border-[#2A2529]/30" />
-                <div className="border-r border-b border-[#2A2529]/30" />
-                <div className="border-b border-[#2A2529]/30" />
-                <div className="border-r border-b border-[#2A2529]/30" />
-                <div className="border-r border-b border-[#2A2529]/30" />
-                <div className="border-b border-[#2A2529]/30" />
-                <div className="border-r border-[#2A2529]/30" />
-                <div className="border-r border-[#2A2529]/30" />
-                <div className="" />
-              </div>
-            )}
-
-            {/* Center Crosshair Reticle */}
-            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-              <div className="w-4 h-px bg-[#2A2529]/60" />
-              <div className="h-4 w-px bg-[#2A2529]/60 absolute" />
-            </div>
-
-            {/* 4 Corner L-Bracket Guides */}
-            <div className="absolute top-1 left-1 w-3 h-3 border-t-2 border-l-2 border-[#2A2529] pointer-events-none" />
-            <div className="absolute top-1 right-1 w-3 h-3 border-t-2 border-r-2 border-[#2A2529] pointer-events-none" />
-            <div className="absolute bottom-1 left-1 w-3 h-3 border-b-2 border-l-2 border-[#2A2529] pointer-events-none" />
-            <div className="absolute bottom-1 right-1 w-3 h-3 border-b-2 border-r-2 border-[#2A2529] pointer-events-none" />
-          </div>
-        </div>
-        );
-      })()}
+        {/* LAYER 2: CLEAN INFINITE WORKSPACE (NO UNWANTED VIEWPORT BORDERS OR OVERLAYS) */}
+        <div ref={viewfinderRef} className="hidden pointer-events-none" />
       </div>
     </main>
   );

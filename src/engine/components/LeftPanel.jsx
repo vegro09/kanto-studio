@@ -201,14 +201,57 @@ export default function LeftPanel({
       return;
     }
 
-    const blobUrl = URL.createObjectURL(file);
     const fileName = file.name.replace(/\.[^/.]+$/, "") || 'Uploaded Asset';
     const mime = file.type || '';
 
-    let mediaType = 'image';
-    let mediaCategory = 'Images';
+    // Handle Image files -> convert immediately to permanent Base64 Data URL for persistent storage!
+    if (mime.startsWith('image/') || file.name.match(/\.(png|jpe?g|webp|svg|gif)$/i)) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64DataUrl = event.target.result;
+        const tempImg = new Image();
+        tempImg.onload = () => {
+          const w = tempImg.naturalWidth || 400;
+          const h = tempImg.naturalHeight || 400;
+          const libraryItem = {
+            id: `media_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+            name: fileName,
+            type: 'image',
+            category: 'Images',
+            src: base64DataUrl,
+            url: base64DataUrl,
+            width: w,
+            height: h,
+            naturalWidth: w,
+            naturalHeight: h,
+            duration: 3.0
+          };
+          if (onSaveToLibrary) onSaveToLibrary(libraryItem);
+          if (onAddAsset) onAddAsset(libraryItem);
+        };
+        tempImg.onerror = () => {
+          const libraryItem = {
+            id: `media_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+            name: fileName,
+            type: 'image',
+            category: 'Images',
+            src: base64DataUrl,
+            url: base64DataUrl,
+            width: 400,
+            height: 400,
+            duration: 3.0
+          };
+          if (onSaveToLibrary) onSaveToLibrary(libraryItem);
+          if (onAddAsset) onAddAsset(libraryItem);
+        };
+        tempImg.src = base64DataUrl;
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
 
     if (mime.startsWith('video/')) {
+      const blobUrl = URL.createObjectURL(file);
       const tempVid = document.createElement('video');
       tempVid.src = blobUrl;
       tempVid.onloadedmetadata = () => {
@@ -234,16 +277,15 @@ export default function LeftPanel({
         if (onAddAsset) onAddAsset(libraryItem);
       };
       return;
-    } else if (mime.startsWith('audio/')) {
-      mediaType = 'audio';
-      mediaCategory = 'Audio';
     }
 
+    // Audio files
+    const blobUrl = URL.createObjectURL(file);
     const libraryItem = {
       id: `media_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
       name: fileName,
-      type: mediaType,
-      category: mediaCategory,
+      type: 'audio',
+      category: 'Audio',
       src: blobUrl,
       url: blobUrl,
       width: 300,
@@ -307,24 +349,29 @@ export default function LeftPanel({
   const videoAssets = userLibraryAssets.filter((a) => a.type === 'video' || a.category === 'Videos');
   const audioAssets = userLibraryAssets.filter((a) => a.type === 'audio' || a.category === 'Audio');
 
-  if (!isOpen) {
-    return (
-      <div className="fixed top-3 left-3 z-40">
-        <button
-          onClick={onToggleOpen}
-          className="p-2 bg-[#2A2529]/90 hover:bg-[#353034] text-[#F3F0E7] border border-white/15 rounded-xl shadow-xl transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
-          title="Open Asset Studio Sidebar"
-        >
-          <PanelLeftOpen className="w-4 h-4 text-[#F3F0E7]" />
-          <span className="text-xs font-mono font-bold">Assets</span>
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <div className="relative flex shrink-0 p-2 h-full z-30 select-none">
-      <aside className="w-80 bg-[#2A2529]/95 backdrop-blur-md border border-white/10 rounded-2xl flex flex-col h-full overflow-hidden shadow-2xl transition-all duration-200">
+    <>
+      {/* Floating Trigger Button when closed */}
+      {!isOpen && (
+        <div className="fixed top-3 left-3 z-40">
+          <button
+            onClick={onToggleOpen}
+            className="p-2 bg-[#2A2529]/90 hover:bg-[#353034] text-[#F3F0E7] border border-white/15 rounded-xl shadow-xl transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+            title="Open Asset Studio Sidebar"
+          >
+            <PanelLeftOpen className="w-4 h-4 text-[#F3F0E7]" />
+            <span className="text-xs font-mono font-bold">Assets</span>
+          </button>
+        </div>
+      )}
+
+      {/* Safe Animated Asset Studio Container - never unmounts hooks */}
+      <div 
+        className={`relative flex shrink-0 p-2 h-full z-30 select-none transition-all duration-300 ease-in-out ${
+          isOpen ? 'w-84 opacity-100' : 'w-0 p-0 opacity-0 overflow-hidden pointer-events-none'
+        }`}
+      >
+        <aside className="w-80 bg-[#2A2529]/95 backdrop-blur-md border border-white/10 rounded-2xl flex flex-col h-full overflow-hidden shadow-2xl">
         
         {/* Studio Header & Universal Uploader */}
         <div className="p-3 border-b border-white/10 flex flex-col gap-2.5 bg-[#211C1F]">
@@ -683,5 +730,6 @@ export default function LeftPanel({
         </div>
       </aside>
     </div>
+    </>
   );
 }

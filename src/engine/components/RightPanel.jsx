@@ -107,30 +107,6 @@ export default function RightPanel({
   const activeTextLayer = textEngineLayers.find((l) => l.id === activeLayerId) || null;
   const isTextLayerSelected = Boolean(activeTextLayer);
 
-  const [rightPanelTab, setRightPanelTab] = useState('inspector'); // 'inspector' | 'character_assembly'
-
-  if (!isOpen) {
-    return (
-      <div className="fixed top-3 right-3 z-40 flex items-center gap-2">
-        <button
-          onClick={onOpenExportModal}
-          className="px-3 py-2 bg-[#F3F0E7] hover:bg-white text-[#2A2529] rounded-xl shadow-xl font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
-          title="Export Video (MP4)"
-        >
-          <Download className="w-4 h-4 text-[#2A2529]" />
-          <span>Export</span>
-        </button>
-        <button
-          onClick={onToggleOpen}
-          className="p-2 bg-[#2A2529]/90 hover:bg-[#353034] text-[#F3F0E7] border border-white/15 rounded-xl shadow-xl transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
-          title="Open Inspector Panel"
-        >
-          <PanelRightOpen className="w-4 h-4 text-[#F3F0E7]" />
-        </button>
-      </div>
-    );
-  }
-
   // Custom Presets State (Persisted in localStorage)
   const [customPresets, setCustomPresets] = useState(() => {
     try {
@@ -145,6 +121,7 @@ export default function RightPanel({
   const [customWidth, setCustomWidth] = useState(sceneSettings?.width || 1080);
   const [customHeight, setCustomHeight] = useState(sceneSettings?.height || 1920);
   const [isSavedNotice, setIsSavedNotice] = useState(false);
+  const [rightPanelTab, setRightPanelTab] = useState('inspector');
 
   const standardPresets = [
     { id: 'v_9_16', name: 'Vertical 9:16 (1080 x 1920) - TikTok/Reels/Shorts', w: 1080, h: 1920, aspect: '9:16', camW: 270, camH: 480 },
@@ -198,8 +175,8 @@ export default function RightPanel({
       camW = 480;
       camH = Math.round(480 / ratio);
     } else {
+      camW = Math.round(270 * ratio);
       camH = 480;
-      camW = Math.round(480 * ratio);
     }
 
     if (onUpdateSceneSettings) {
@@ -212,7 +189,7 @@ export default function RightPanel({
 
     if (onUpdateCamera) {
       onUpdateCamera({
-        aspectRatio: ratio >= 1 ? '16:9' : '9:16',
+        aspectRatio: `${w}:${h}`,
         width: camW,
         height: camH
       });
@@ -220,17 +197,27 @@ export default function RightPanel({
   };
 
   const handleSaveCustomPreset = () => {
-    const w = customWidth;
-    const h = customHeight;
-    const ratio = (w / h).toFixed(2);
+    const w = parseInt(customWidth) || 1080;
+    const h = parseInt(customHeight) || 1920;
+    const ratio = w / h;
+    let camW = 270;
+    let camH = 480;
+    if (ratio >= 1) {
+      camW = 480;
+      camH = Math.round(480 / ratio);
+    } else {
+      camW = Math.round(270 * ratio);
+      camH = 480;
+    }
+
     const newPreset = {
       id: `custom_${Date.now()}`,
-      name: `Custom (${w} x ${h}) [${ratio}]`,
+      name: `Custom (${w} x ${h})`,
       w,
       h,
       aspect: `${w}:${h}`,
-      camW: w >= h ? 480 : Math.round(480 * (w / h)),
-      camH: h > w ? 480 : Math.round(480 * (h / w))
+      camW,
+      camH
     };
 
     const updated = [...customPresets, newPreset];
@@ -255,9 +242,35 @@ export default function RightPanel({
   };
 
   return (
-    <div className="relative z-30 flex shrink-0 p-2 h-full">
-      {/* Slideable Glassmorphic Panel Body */}
-      <aside className="w-80 bg-[#2A2529]/95 backdrop-blur-md border border-white/10 rounded-2xl flex flex-col h-full select-none shadow-2xl overflow-hidden transition-all duration-200">
+    <>
+      {/* Floating Trigger Buttons when Closed */}
+      {!isOpen && (
+        <div className="fixed top-3 right-3 z-40 flex items-center gap-2">
+          <button
+            onClick={onOpenExportModal}
+            className="px-3 py-2 bg-[#F3F0E7] hover:bg-white text-[#2A2529] rounded-xl shadow-xl font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+            title="Export Video (MP4)"
+          >
+            <Download className="w-4 h-4 text-[#2A2529]" />
+            <span>Export</span>
+          </button>
+          <button
+            onClick={onToggleOpen}
+            className="p-2 bg-[#2A2529]/90 hover:bg-[#353034] text-[#F3F0E7] border border-white/15 rounded-xl shadow-xl transition-all active:scale-95 flex items-center gap-1.5 cursor-pointer"
+            title="Open Inspector Panel"
+          >
+            <PanelRightOpen className="w-4 h-4 text-[#F3F0E7]" />
+          </button>
+        </div>
+      )}
+
+      {/* Safe Animated Inspector Container - never unmounts hooks */}
+      <div 
+        className={`relative z-30 flex shrink-0 p-2 h-full transition-all duration-300 ease-in-out ${
+          isOpen ? 'w-84 opacity-100' : 'w-0 p-0 opacity-0 overflow-hidden pointer-events-none'
+        }`}
+      >
+        <aside className="w-80 bg-[#2A2529]/95 backdrop-blur-md border border-white/10 rounded-2xl flex flex-col h-full select-none shadow-2xl overflow-hidden">
         {/* Panel Header & Mode Switcher */}
         <div className="p-3 border-b border-white/10 flex flex-col gap-2 bg-[#211C1F]">
           <div className="flex items-center justify-between">
@@ -1596,5 +1609,6 @@ export default function RightPanel({
       )}
     </aside>
   </div>
+  </>
 );
 }
