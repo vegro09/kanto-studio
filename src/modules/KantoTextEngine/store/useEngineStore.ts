@@ -200,6 +200,77 @@ const DEFAULT_LAYER_2: KantoTextNode = {
   },
 };
 
+export const DEFAULT_TEXT_STATE: Omit<KantoTextNode, 'id'> = {
+  content: 'KANTO MOTION',
+  transform: {
+    x: 0,
+    y: 0,
+    scale: 1,
+    rotation: 0,
+  },
+  font: {
+    family: 'Space Grotesk',
+    size: 72,
+    isCustom: false,
+  },
+  style: {
+    fill: '#ffffff',
+    opacity: 1,
+    stroke: {
+      enabled: false,
+      color: '#000000',
+      width: 2,
+    },
+    glow: {
+      enabled: false,
+      color: '#ffffff',
+      blur: 10,
+    },
+    background: {
+      enabled: false,
+      color: '#1c1c1c',
+      radius: 12,
+      padding: 16,
+      opacity: 0.8,
+    },
+    shadow3D: {
+      enabled: false,
+      color: '#000000',
+      distance: 8,
+    },
+    spacing: {
+      char: 0,
+      line: 1.2,
+    },
+    bold: true,
+    italic: false,
+    underline: false,
+    align: 'center',
+  },
+  animation: {
+    in: {
+      type: 'none',
+      duration: 0.8,
+    },
+    out: {
+      type: 'none',
+      duration: 0.6,
+    },
+    loop: {
+      type: 'none',
+      speed: 1.0,
+    },
+  },
+  meta: {
+    name: 'KANTO MOTION',
+    locked: false,
+    hidden: false,
+    startTime: 0,
+    endTime: 5.0,
+    duration: 5.0,
+  },
+};
+
 export const useEngineStore = create<EngineState>((set, get) => ({
   layers: [],
   activeLayerId: null,
@@ -244,10 +315,13 @@ export const useEngineStore = create<EngineState>((set, get) => ({
     const dur = typeof durationSec === 'number' && durationSec > 0 ? durationSec : 5.0;
     const start = typeof startTimeSec === 'number' && Number.isFinite(startTimeSec) ? Math.max(0, startTimeSec) : 0;
     const posX = typeof customX === 'number' && Number.isFinite(customX) ? customX : (dims.width / 2);
-    const posY = typeof customY === 'number' && Number.isFinite(customY) ? customY : (dims.height / 2 + (get().layers.length * 50));
+    const posY = typeof customY === 'number' && Number.isFinite(customY) ? customY : (dims.height / 2);
+
+    const defaultStateCopy = JSON.parse(JSON.stringify(DEFAULT_TEXT_STATE));
 
     const newLayer: KantoTextNode = {
       id: newId,
+      ...defaultStateCopy,
       content: content || 'KANTO MOTION',
       transform: {
         x: posX,
@@ -260,51 +334,8 @@ export const useEngineStore = create<EngineState>((set, get) => ({
         size: 72,
         isCustom: false,
       },
-      style: {
-        fill: '#ffffff',
-        opacity: 1,
-        stroke: {
-          enabled: false,
-          color: '#000000',
-          width: 2,
-        },
-        glow: {
-          enabled: false,
-          color: '#ffffff',
-          blur: 10,
-        },
-        background: {
-          enabled: false,
-          color: '#1c1c1c',
-          radius: 12,
-          padding: 16,
-          opacity: 0.8,
-        },
-        spacing: {
-          char: 0,
-          line: 1.2,
-        },
-        bold: true,
-        italic: false,
-        underline: false,
-        align: 'center',
-      },
-      animation: {
-        in: {
-          type: 'none',
-          duration: 0.8,
-        },
-        out: {
-          type: 'none',
-          duration: 0.6,
-        },
-        loop: {
-          type: 'none',
-          speed: 1.0,
-        },
-      },
       meta: {
-        name: content || `Text ${get().layers.length + 1}`,
+        name: content || 'KANTO MOTION',
         locked: false,
         hidden: false,
         startTime: start,

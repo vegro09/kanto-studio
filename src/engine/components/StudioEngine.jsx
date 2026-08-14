@@ -1083,19 +1083,26 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
 
   const handleAddTextAsset = (customText) => {
     const camW = (camera?.width || 270) * (camera?.scale || 1);
-    const camH = (camera?.height || 480) * (camera?.scale || 1);
-    const camCenterX = (camera?.x || 0) + camW / 2;
-    const camCenterY = (camera?.y || 0) + camH / 2;
+    const camX = typeof camera?.x === 'number' && Number.isFinite(camera.x) ? camera.x : 0;
+    const camY = typeof camera?.y === 'number' && Number.isFinite(camera.y) ? camera.y : 0;
+
+    // Requirement 1: Horizontal Center relative to camera
+    const spawnX = Math.round(camX + camW / 2);
+
+    // Requirement 1: Directly ABOVE the camera's top boundary, outside the viewable camera area
+    // Formula: y = camera.y - (textBounds.height / 2) - 40
+    const textEstimatedHeight = 100;
+    const spawnY = Math.round(camY - (textEstimatedHeight / 2) - 40);
 
     const currentTimestampSec = Math.round(((playbackProgress || 0) * (totalDuration || 10)) * 100) / 100;
     const textContent = customText || 'KANTO MOTION';
 
-    // 1. Instantiate new default Text Object in KantoTextEngine
+    // 1. Instantiate new default Text Object in KantoTextEngine using strict default state
     const layerId = useEngineStore.getState().addLayer(
       textContent,
       false,
-      camCenterX,
-      camCenterY,
+      spawnX,
+      spawnY,
       currentTimestampSec,
       5.0
     );
@@ -1107,10 +1114,10 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
       type: 'text',
       category: 'Text',
       textContent: textContent,
-      x: Math.round(camCenterX - 160),
-      y: Math.round(camCenterY - 60),
+      x: Math.round(spawnX - 160),
+      y: Math.round(spawnY - 50),
       width: 320,
-      height: 120,
+      height: 100,
       scale: 1.0,
       rotation: 0,
       opacity: 1.0,
@@ -1141,7 +1148,7 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
     setSelectedAssetId(layerId);
     setIsCameraSelected(false);
     setIsRightPanelOpen(true);
-    showToast('Added Text Clip to Timeline & Canvas', 'success');
+    showToast('Spawned Text Object Above Camera Viewfinder', 'success');
   };
 
   const handleUpdateAsset = (id, updates) => {
