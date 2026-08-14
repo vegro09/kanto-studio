@@ -60,6 +60,10 @@ export class CanvasRenderer {
     this.onLayerSelect = onSelect;
   }
 
+  public isInteracting(): boolean {
+    return this.interactionMode !== 'none';
+  }
+
   // Draw background, safe areas, grid, layers, and interactive handles
   public render(
     layers: KantoTextNode[],

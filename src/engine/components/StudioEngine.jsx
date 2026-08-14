@@ -765,7 +765,8 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
         posY = (typeof targetY === 'number' && Number.isFinite(targetY)) ? targetY : (camCenterY - finalH / 2);
       }
 
-      const autoStart = isScene ? 0.0 : getSequentialAutoStartTime(assets);
+      const currentPlayheadSec = Math.round(((playbackProgress || 0) * (totalDuration || 10)) * 100) / 100;
+      const autoStart = isScene ? 0.0 : currentPlayheadSec;
 
       const newAsset = {
         id: `img_fresh_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
@@ -786,7 +787,7 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
         zIndex: Date.now(),
         isLocked: false,
         startTimeSec: autoStart,
-        duration: 5.0
+        duration: isScene ? (totalDuration || 10) : 3.0
       };
 
       recordHistory();
@@ -798,9 +799,10 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
           const updated = [...prevShots];
           const activeShot = updated[activeShotIndex];
           if (activeShot) {
+            const currentShotAssets = activeShot.assets || [];
             updated[activeShotIndex] = {
               ...activeShot,
-              assets: [...(activeShot.assets || []), newAsset]
+              assets: [...currentShotAssets, newAsset]
             };
           }
           return updated;
@@ -809,53 +811,40 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
 
       setSelectedAssetId(newAsset.id);
       setIsCameraSelected(false);
-      showToast(`Added "${newAsset.name}" to workspace & timeline`, 'success');
+      showToast(`Added "${newAsset.name}" at playhead (${autoStart.toFixed(1)}s)`, 'success');
     };
 
-    img.onload = () => {
-      commitAsset(img.naturalWidth || 400, img.naturalHeight || 400);
-    };
-
-    img.onerror = () => {
-      // Fallback committing even if cross-origin image natural dimensions fail to load asynchronously
-      commitAsset(400, 400);
-    };
-
+    img.onload = () => commitAsset(img.naturalWidth || 400, img.naturalHeight || 400);
+    img.onerror = () => commitAsset(400, 400);
     img.src = fileOrBlobUrl;
   };
 
-  // AUDIO & VOICE-OVER SUITE TRACK HANDLERS
-  const handleAddAudioTrack = (audioAsset) => {
-    recordHistory();
-    setAssets((prev) => [...prev, audioAsset]);
-    showToast(`Recorded "${audioAsset.name}" to Audio track`, 'success');
-  };
-
-  const handleSplitAudioClip = (audioId, splitTimestampSec) => {
+  // Standalone Audio Clip Razor Split Engine
+  const handleSplitAudioClip = (assetId, playheadTimeSec) => {
     recordHistory();
     setAssets((prev) => {
       const updated = [];
       prev.forEach((asset) => {
-        if (asset.id === audioId) {
+        if (asset.id === assetId && (asset.type === 'audio' || asset.category === 'Audio')) {
           const start = asset.startTimeSec || 0;
-          const duration = asset.duration || 3.0;
-          const end = start + duration;
+          const dur = asset.duration || 5.0;
+          const end = start + dur;
 
-          if (splitTimestampSec > start + 0.1 && splitTimestampSec < end - 0.1) {
-            const firstDuration = Math.round((splitTimestampSec - start) * 10) / 10;
-            const secondDuration = Math.round((end - splitTimestampSec) * 10) / 10;
+          if (playheadTimeSec > start + 0.2 && playheadTimeSec < end - 0.2) {
+            const firstDur = Math.round((playheadTimeSec - start) * 10) / 10;
+            const secondDur = Math.round((end - playheadTimeSec) * 10) / 10;
 
             const clip1 = {
               ...asset,
-              duration: Math.max(0.2, firstDuration)
+              duration: Math.max(0.2, firstDur)
             };
 
             const clip2 = {
               ...asset,
               id: `audio_${Date.now()}_split`,
               name: `${asset.name} (Part 2)`,
-              startTimeSec: Math.round(splitTimestampSec * 10) / 10,
-              duration: Math.max(0.2, secondDuration)
+              startTimeSec: Math.round(playheadTimeSec * 10) / 10,
+              duration: Math.max(0.2, secondDur)
             };
 
             updated.push(clip1, clip2);
@@ -882,7 +871,8 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
     const camCenterX = camera.x + camW / 2;
     const camCenterY = camera.y + camH / 2;
 
-    const autoStart = getSequentialAutoStartTime(assets);
+    const currentPlayheadSec = Math.round(((playbackProgress || 0) * (totalDuration || 10)) * 100) / 100;
+    const autoStart = currentPlayheadSec;
 
     const partW = partDef.width || 100;
     const partH = partDef.height || 120;
@@ -911,13 +901,13 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
       zIndex: Date.now(),
       isLocked: false,
       startTimeSec: autoStart,
-      duration: 5.0
+      duration: 3.0
     };
 
     setAssets((prev) => [...prev, newAsset]);
     setSelectedAssetId(newAsset.id);
     setIsCameraSelected(false);
-    showToast(`Spawned "${newAsset.name}" modular body part`, 'success');
+    showToast(`Spawned "${newAsset.name}" at playhead (${autoStart.toFixed(1)}s)`, 'success');
   };
 
   // ASSET ACTIONS
@@ -946,7 +936,8 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
       const camCenterX = camera.x + viewfinderWidth / 2;
       const camCenterY = camera.y + viewfinderHeight / 2;
 
-      const autoStart = (preset.startTimeSec !== undefined && preset.startTimeSec > 0) ? preset.startTimeSec : getSequentialAutoStartTime(assets);
+      const currentPlayheadSec = Math.round(((playbackProgress || 0) * (totalDuration || 10)) * 100) / 100;
+      const autoStart = (typeof preset.startTimeSec === 'number' && Number.isFinite(preset.startTimeSec)) ? preset.startTimeSec : currentPlayheadSec;
 
       const posX = (typeof preset.x === 'number' && Number.isFinite(preset.x)) ? preset.x : Math.round(camCenterX - finalW / 2);
       const posY = (typeof preset.y === 'number' && Number.isFinite(preset.y)) ? preset.y : Math.round(camCenterY - finalH / 2);
@@ -977,15 +968,15 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
       setAssets((prev) => [...prev, newAsset]);
       setSelectedAssetId(newAsset.id);
       setIsCameraSelected(false);
-      showToast(`Added Video "${newAsset.name}" to workspace & timeline`, 'success');
+      showToast(`Added Video "${newAsset.name}" at playhead (${autoStart.toFixed(1)}s)`, 'success');
       return;
     }
 
-    // 2. STOCK BACKGROUND LAYER ENFORCEMENT (1-CLICK FULL FRAME DEPLOYMENT)
-    if (preset.type === 'background' || preset.isBackgroundLayer || preset.category === 'Stock') {
+    // 2. STOCK / SOLID BACKGROUND ASSETS
+    if (preset.type === 'background' || preset.category === 'Stock' || preset.isBackgroundLayer) {
       recordHistory();
       const newAsset = {
-        id: `bg_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+        id: preset.id || `bg_${Date.now()}`,
         name: preset.name || 'Stock Background',
         type: 'background',
         category: 'Stock',
@@ -1030,10 +1021,11 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
     const initialW = preset.width || 400;
     const initialH = preset.height || 400;
 
+    const currentPlayheadSec = Math.round(((playbackProgress || 0) * (totalDuration || 10)) * 100) / 100;
     const isBg = preset.type === 'background' || preset.category === 'Stock' || preset.isBackgroundLayer;
-    const autoStart = (preset.startTimeSec !== undefined && preset.startTimeSec > 0 && !isBg)
+    const autoStart = (typeof preset.startTimeSec === 'number' && Number.isFinite(preset.startTimeSec))
       ? preset.startTimeSec
-      : getSequentialAutoStartTime(assets, isBg);
+      : (isBg ? 0.0 : currentPlayheadSec);
 
     const newAsset = {
       id: preset.id || `img_${Date.now()}`,
@@ -1055,7 +1047,7 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
       height: initialH,
       isLocked: false,
       startTimeSec: autoStart,
-      duration: preset.duration || 5.0
+      duration: preset.duration || 3.0
     };
 
     setAssets((prev) => [...prev, newAsset]);
@@ -1078,7 +1070,7 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
 
     setSelectedAssetId(newAsset.id);
     setIsCameraSelected(false);
-    showToast(`Added asset "${newAsset.name}" to active scene`, 'success');
+    showToast(`Added asset "${newAsset.name}" at playhead (${autoStart.toFixed(1)}s)`, 'success');
   };
 
   const handleAddTextAsset = (customText) => {

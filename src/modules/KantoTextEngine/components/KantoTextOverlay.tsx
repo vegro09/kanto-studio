@@ -128,8 +128,8 @@ export const KantoTextOverlay: React.FC<KantoTextOverlayProps> = ({
     (clientX: number, clientY: number): { x: number; y: number } | null => {
       if (!canvasRef.current) return null;
       const rect = canvasRef.current.getBoundingClientRect();
-      const scaleX = sceneWidth / rect.width;
-      const scaleY = sceneHeight / rect.height;
+      const scaleX = sceneWidth / (rect.width || 1);
+      const scaleY = sceneHeight / (rect.height || 1);
 
       return {
         x: (clientX - rect.left) * scaleX,
@@ -139,17 +139,53 @@ export const KantoTextOverlay: React.FC<KantoTextOverlayProps> = ({
     [sceneWidth, sceneHeight]
   );
 
+  // Dynamic hit-testing: pass through pointer events to scene assets unless hovering text / handles
+  useEffect(() => {
+    if (!interactive) return;
+
+    const handleWindowPointerMove = (e: PointerEvent) => {
+      if (!rendererRef.current || !canvasRef.current) return;
+
+      if (rendererRef.current.isInteracting()) {
+        canvasRef.current.style.pointerEvents = 'auto';
+        return;
+      }
+
+      const coords = getWorldCoordinates(e.clientX, e.clientY);
+      if (!coords) {
+        canvasRef.current.style.pointerEvents = 'none';
+        return;
+      }
+
+      const cursor = rendererRef.current.getCursor(coords.x, coords.y, layers);
+      const isOverText = cursor !== 'default';
+
+      canvasRef.current.style.pointerEvents = isOverText ? 'auto' : 'none';
+      if (isOverText) {
+        canvasRef.current.style.cursor = cursor;
+      }
+    };
+
+    window.addEventListener('pointermove', handleWindowPointerMove, { passive: true });
+    return () => window.removeEventListener('pointermove', handleWindowPointerMove);
+  }, [interactive, layers, getWorldCoordinates]);
+
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!interactive) return;
     const coords = getWorldCoordinates(e.clientX, e.clientY);
     if (!coords || !rendererRef.current) return;
     const hit = rendererRef.current.handlePointerDown(coords.x, coords.y, layers);
     if (hit) {
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
       if (canvasRef.current) {
+        canvasRef.current.style.pointerEvents = 'auto';
         canvasRef.current.style.cursor = rendererRef.current.getCursor(coords.x, coords.y, layers);
       }
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
       e.stopPropagation();
+    } else {
+      if (canvasRef.current) {
+        canvasRef.current.style.pointerEvents = 'none';
+      }
     }
   };
 
@@ -171,10 +207,10 @@ export const KantoTextOverlay: React.FC<KantoTextOverlayProps> = ({
     rendererRef.current?.handlePointerUp();
     if (canvasRef.current && rendererRef.current) {
       const coords = getWorldCoordinates(e.clientX, e.clientY);
-      if (coords) {
-        canvasRef.current.style.cursor = rendererRef.current.getCursor(coords.x, coords.y, layers);
-      } else {
-        canvasRef.current.style.cursor = 'default';
+      const cursor = coords ? rendererRef.current.getCursor(coords.x, coords.y, layers) : 'default';
+      canvasRef.current.style.cursor = cursor;
+      if (cursor === 'default') {
+        canvasRef.current.style.pointerEvents = 'none';
       }
     }
   };
@@ -187,7 +223,7 @@ export const KantoTextOverlay: React.FC<KantoTextOverlayProps> = ({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      className={`absolute inset-0 w-full h-full ${interactive ? 'pointer-events-auto cursor-default' : 'pointer-events-none'}`}
+      className="absolute inset-0 w-full h-full pointer-events-none cursor-default"
       style={{
         zIndex: 1050,
         background: 'transparent',
