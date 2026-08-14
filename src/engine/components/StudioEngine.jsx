@@ -7,7 +7,6 @@ import RightPanel from './RightPanel';
 import BottomSequencer from './BottomSequencer';
 import ExportModal from './ExportModal';
 import Toast from './Toast';
-import AudioEngine from './AudioEngine';
 import { 
   MousePointer, 
   Hand, 
@@ -18,7 +17,9 @@ import {
   RotateCw, 
   Eye, 
   EyeOff,
-  Target
+  Target,
+  PanelLeftOpen,
+  PanelRightOpen
 } from 'lucide-react';
 import { DEFAULT_DEMO_PROJECT } from '../data/presetAssets';
 import { getProject, saveProject } from '../../lib/projectStore';
@@ -543,17 +544,18 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
     }
     recordHistory();
     const source = clipboardRef.current;
+    const uniqueId = `el_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const pastedAsset = {
-      ...source,
-      id: `asset-${Date.now()}`,
+      ...JSON.parse(JSON.stringify(source)),
+      id: uniqueId,
       name: `${source.name} (Copy)`,
-      x: source.x + 30,
-      y: source.y + 30,
-      zIndex: assets.length > 0 ? Math.max(...assets.map((a) => a.zIndex)) + 1 : 1
+      x: (source.x || 0) + 20,
+      y: (source.y || 0) + 20,
+      zIndex: Date.now()
     };
 
     setAssets((prev) => [...prev, pastedAsset]);
-    setSelectedAssetId(pastedAsset.id);
+    setSelectedAssetId(uniqueId);
     setIsCameraSelected(false);
     showToast(`Pasted "${pastedAsset.name}"`, 'success');
   };
@@ -769,7 +771,7 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
       const autoStart = isScene ? 0.0 : currentPlayheadSec;
 
       const newAsset = {
-        id: `img_fresh_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+        id: `el_img_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         name: assetName,
         type: isScene ? 'background' : (originalType || 'image'),
         src: fileOrBlobUrl,
@@ -811,7 +813,7 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
 
       setSelectedAssetId(newAsset.id);
       setIsCameraSelected(false);
-      showToast(`Added "${newAsset.name}" at playhead (${autoStart.toFixed(1)}s)`, 'success');
+      showToast(`Added ${category || 'Image'} "${newAsset.name}" at playhead (${autoStart.toFixed(1)}s)`, 'success');
     };
 
     img.onload = () => commitAsset(img.naturalWidth || 400, img.naturalHeight || 400);
@@ -819,7 +821,7 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
     img.src = fileOrBlobUrl;
   };
 
-  // AUDIO & VOICE-OVER SUITE TRACK HANDLERS
+  // 1. AUDIO TRACK ASSET ENFORCEMENT & UNIQUE ID SPAWNING
   const handleAddAudioTrack = (audioAsset) => {
     recordHistory();
     const currentPlayheadSec = Math.round(((playbackProgress || 0) * (totalDuration || 10)) * 100) / 100;
@@ -827,55 +829,54 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
       ? audioAsset.startTimeSec
       : currentPlayheadSec;
 
+    const uniqueId = `el_aud_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const newAudio = {
       ...audioAsset,
+      id: uniqueId,
       startTimeSec: startSec,
-      duration: audioAsset.duration || 5.0
+      duration: audioAsset.duration || 5.0,
+      zIndex: Date.now()
     };
 
     setAssets((prev) => [...prev, newAudio]);
     showToast(`Added "${newAudio.name}" to Audio track at playhead (${startSec.toFixed(1)}s)`, 'success');
   };
 
-  // Standalone Audio Clip Razor Split Engine
-  const handleSplitAudioClip = (assetId, playheadTimeSec) => {
+  // 2. AUDIO TRACK CLIP SPLITTING AT PLAYHEAD
+  const handleSplitAudioClip = (audioTrackId, splitTimeSec) => {
+    const targetAudio = assets.find((a) => a.id === audioTrackId && (a.type === 'audio' || a.category === 'Audio'));
+    if (!targetAudio) return;
+
+    const originalStart = targetAudio.startTimeSec || 0;
+    const originalDur = targetAudio.duration || 5.0;
+    const originalEnd = originalStart + originalDur;
+
+    if (splitTimeSec <= originalStart + 0.1 || splitTimeSec >= originalEnd - 0.1) {
+      showToast('Cannot split too close to clip boundary', 'info');
+      return;
+    }
+
     recordHistory();
-    setAssets((prev) => {
-      const updated = [];
-      prev.forEach((asset) => {
-        if (asset.id === assetId && (asset.type === 'audio' || asset.category === 'Audio')) {
-          const start = asset.startTimeSec || 0;
-          const dur = asset.duration || 5.0;
-          const end = start + dur;
+    const firstDuration = splitTimeSec - originalStart;
+    const secondDuration = originalEnd - splitTimeSec;
 
-          if (playheadTimeSec > start + 0.2 && playheadTimeSec < end - 0.2) {
-            const firstDur = Math.round((playheadTimeSec - start) * 10) / 10;
-            const secondDur = Math.round((end - playheadTimeSec) * 10) / 10;
+    const firstClip = {
+      ...targetAudio,
+      duration: Math.round(firstDuration * 100) / 100
+    };
 
-            const clip1 = {
-              ...asset,
-              duration: Math.max(0.2, firstDur)
-            };
+    const secondClip = {
+      ...JSON.parse(JSON.stringify(targetAudio)),
+      id: `el_aud_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      name: `${targetAudio.name} (Part 2)`,
+      startTimeSec: Math.round(splitTimeSec * 100) / 100,
+      duration: Math.round(secondDuration * 100) / 100,
+      audioOffsetSec: (targetAudio.audioOffsetSec || 0) + firstDuration,
+      zIndex: Date.now()
+    };
 
-            const clip2 = {
-              ...asset,
-              id: `audio_${Date.now()}_split`,
-              name: `${asset.name} (Part 2)`,
-              startTimeSec: Math.round(playheadTimeSec * 10) / 10,
-              duration: Math.max(0.2, secondDur)
-            };
-
-            updated.push(clip1, clip2);
-          } else {
-            updated.push(asset);
-          }
-        } else {
-          updated.push(asset);
-        }
-      });
-      return updated;
-    });
-
+    setAssets((prev) => prev.map((a) => (a.id === audioTrackId ? firstClip : a)).concat(secondClip));
+    setSelectedAssetId(secondClip.id);
     showToast('Split audio clip at razor cursor', 'success');
   };
 
@@ -899,7 +900,7 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
     const posY = (typeof partDef.y === 'number' && Number.isFinite(partDef.y)) ? partDef.y : Math.round(camCenterY - partH / 2);
 
     const newAsset = {
-      id: `mod_${partDef.id}_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      id: `el_mod_${partDef.id}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       name: partDef.name,
       type: 'modular_body_part',
       partType: partDef.id,
@@ -961,7 +962,7 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
       const posY = (typeof preset.y === 'number' && Number.isFinite(preset.y)) ? preset.y : Math.round(camCenterY - finalH / 2);
 
       const newAsset = {
-        id: preset.id || `video_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+        id: `el_vid_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         name: preset.name || 'Video Asset',
         type: 'video',
         category: 'Videos',
@@ -994,7 +995,7 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
     if (preset.type === 'background' || preset.category === 'Stock' || preset.isBackgroundLayer) {
       recordHistory();
       const newAsset = {
-        id: preset.id || `bg_${Date.now()}`,
+        id: `el_bg_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         name: preset.name || 'Stock Background',
         type: 'background',
         category: 'Stock',
@@ -1045,8 +1046,9 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
       ? preset.startTimeSec
       : (isBg ? 0.0 : currentPlayheadSec);
 
+    const uniqueId = `el_${preset.type || 'item'}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const newAsset = {
-      id: preset.id || `img_${Date.now()}`,
+      id: uniqueId,
       name: preset.name || 'New Asset',
       type: preset.type || 'image',
       isSolidColor: preset.isSolidColor || false,
@@ -1214,19 +1216,21 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
   const handleDuplicateAsset = (id) => {
     const target = assets.find((a) => a.id === id);
     if (!target) return;
+    recordHistory();
 
+    const uniqueId = `el_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const dupAsset = {
-      ...target,
-      id: `asset-${Date.now()}`,
+      ...JSON.parse(JSON.stringify(target)),
+      id: uniqueId,
       name: `${target.name} (Copy)`,
-      x: target.x + 30,
-      y: target.y + 30,
-      zIndex: Math.max(...assets.map((a) => a.zIndex)) + 1
+      x: (target.x || 0) + 20,
+      y: (target.y || 0) + 20,
+      zIndex: Date.now()
     };
 
     setAssets((prev) => [...prev, dupAsset]);
-    setSelectedAssetId(dupAsset.id);
-    showToast(`Duplicated "${target.name}"`, 'success');
+    setSelectedAssetId(uniqueId);
+    showToast(`Duplicated "${dupAsset.name}"`, 'success');
   };
 
   const handleReorderZIndex = (id, action) => {
@@ -1616,6 +1620,18 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
           onSaveToLibrary={handleSaveToLibrary}
         />
 
+        {/* Floating Edge Toggle Tab - Reopen Left Asset Studio */}
+        {!isLeftPanelOpen && (
+          <button
+            onClick={() => setIsLeftPanelOpen(true)}
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-40 bg-[#000000] text-[#FFFFFF] hover:bg-[#1a1a1a] border-r border-y border-white/20 rounded-r-xl py-3 px-2 shadow-2xl transition-all flex flex-col items-center gap-1.5 cursor-pointer group hover:pl-2.5"
+            title="Open Asset Studio"
+          >
+            <PanelLeftOpen className="w-4 h-4 text-[#FFFFFF] group-hover:scale-110 transition-transform" />
+            <span className="text-[9px] font-mono font-bold tracking-widest [writing-mode:vertical-lr] uppercase text-zinc-300 group-hover:text-white">Assets</span>
+          </button>
+        )}
+
         {/* 3. Main Center Workspace */}
         {viewMode === 'director' ? (
           <WorkspaceCanvas
@@ -1690,6 +1706,18 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
           playbackProgress={playbackProgress}
           totalDuration={totalDuration}
         />
+
+        {/* Floating Edge Toggle Tab - Reopen Right Inspector */}
+        {!isRightPanelOpen && (
+          <button
+            onClick={() => setIsRightPanelOpen(true)}
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-40 bg-[#000000] text-[#FFFFFF] hover:bg-[#1a1a1a] border-l border-y border-white/20 rounded-l-xl py-3 px-2 shadow-2xl transition-all flex flex-col items-center gap-1.5 cursor-pointer group hover:pr-2.5"
+            title="Open Inspector"
+          >
+            <PanelRightOpen className="w-4 h-4 text-[#FFFFFF] group-hover:scale-110 transition-transform" />
+            <span className="text-[9px] font-mono font-bold tracking-widest [writing-mode:vertical-lr] uppercase text-zinc-300 group-hover:text-white">Inspector</span>
+          </button>
+        )}
 
         {/* FLOATING QUICK TOOLBAR (TASK 3 - ABSOLUTE FLOATING OVER WORKSPACE BOTTOM AREA) */}
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none">

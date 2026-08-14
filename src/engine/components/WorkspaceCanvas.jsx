@@ -1011,53 +1011,55 @@ export default function WorkspaceCanvas({
                     {/* Top Rotation Knob Handle */}
                     <div
                       onMouseDown={(e) => handleRotateHandleMouseDown(e, asset)}
-                      className="absolute -top-9 left-1/2 -translate-x-1/2 w-6 h-6 bg-purple-600 border-2 border-white rounded-full shadow-xl cursor-grab active:cursor-grabbing z-50 flex items-center justify-center text-white pointer-events-auto transition-transform hover:scale-125"
-                      title="Drag to flex / rotate joint angle"
+                      className="absolute -top-9 left-1/2 -translate-x-1/2 w-6 h-6 bg-[#000000] border border-[#FFFFFF] rounded-full shadow-xl cursor-grab active:cursor-grabbing z-50 flex items-center justify-center text-white pointer-events-auto transition-transform hover:scale-125"
+                      title="Drag to rotate element"
                     >
-                      <RotateCw className="w-3 h-3" />
+                      <RotateCw className="w-3 h-3 text-[#FFFFFF]" />
                     </div>
+                    {/* Stem connecting top rotation handle to bounding box */}
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-[1px] h-4 bg-[#FFFFFF] pointer-events-none" />
 
-                    {/* Edge Stretch Handles for Length & Stretch Deformation */}
+                    {/* Edge Stretch Handles */}
                     <div
                       onMouseDown={(e) => handleResizeHandleMouseDown(e, asset, 'top')}
-                      className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-6 h-3 bg-purple-500/80 border border-white rounded-full cursor-ns-resize z-50 pointer-events-auto hover:scale-125 transition-transform"
+                      className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-6 h-2 bg-[#000000] border border-[#FFFFFF] rounded-sm cursor-ns-resize z-50 pointer-events-auto hover:scale-125 transition-transform"
                       title="Stretch top edge"
                     />
                     <div
                       onMouseDown={(e) => handleResizeHandleMouseDown(e, asset, 'bottom')}
-                      className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-6 h-3 bg-purple-500/80 border border-white rounded-full cursor-ns-resize z-50 pointer-events-auto hover:scale-125 transition-transform"
+                      className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-6 h-2 bg-[#000000] border border-[#FFFFFF] rounded-sm cursor-ns-resize z-50 pointer-events-auto hover:scale-125 transition-transform"
                       title="Stretch bottom edge"
                     />
                     <div
                       onMouseDown={(e) => handleResizeHandleMouseDown(e, asset, 'left')}
-                      className="absolute top-1/2 -left-1.5 -translate-y-1/2 w-3 h-6 bg-purple-500/80 border border-white rounded-full cursor-ew-resize z-50 pointer-events-auto hover:scale-125 transition-transform"
+                      className="absolute top-1/2 -left-1.5 -translate-y-1/2 w-2 h-6 bg-[#000000] border border-[#FFFFFF] rounded-sm cursor-ew-resize z-50 pointer-events-auto hover:scale-125 transition-transform"
                       title="Stretch left edge"
                     />
                     <div
                       onMouseDown={(e) => handleResizeHandleMouseDown(e, asset, 'right')}
-                      className="absolute top-1/2 -right-1.5 -translate-y-1/2 w-3 h-6 bg-purple-500/80 border border-white rounded-full cursor-ew-resize z-50 pointer-events-auto hover:scale-125 transition-transform"
+                      className="absolute top-1/2 -right-1.5 -translate-y-1/2 w-2 h-6 bg-[#000000] border border-[#FFFFFF] rounded-sm cursor-ew-resize z-50 pointer-events-auto hover:scale-125 transition-transform"
                       title="Stretch right edge"
                     />
 
-                    {/* Apple Styled Transform Corner Handles */}
+                    {/* 4 Monochrome Corner Handles */}
                     <div
                       onMouseDown={(e) => handleResizeHandleMouseDown(e, asset, 'nw')}
-                      className="absolute -top-2.5 -left-2.5 w-5 h-5 bg-[#2A2529] border-2 border-[#F3F0E7] rounded-full shadow-xl cursor-nwse-resize z-50 pointer-events-auto transition-transform hover:scale-125"
+                      className="absolute -top-2 -left-2 w-4 h-4 bg-[#FFFFFF] border border-[#000000] rounded-sm shadow-md cursor-nwse-resize z-50 pointer-events-auto transition-transform hover:scale-125"
                       title="Drag to resize top-left"
                     />
                     <div
                       onMouseDown={(e) => handleResizeHandleMouseDown(e, asset, 'ne')}
-                      className="absolute -top-2.5 -right-2.5 w-5 h-5 bg-[#2A2529] border-2 border-[#F3F0E7] rounded-full shadow-xl cursor-nesw-resize z-50 pointer-events-auto transition-transform hover:scale-125"
+                      className="absolute -top-2 -right-2 w-4 h-4 bg-[#FFFFFF] border border-[#000000] rounded-sm shadow-md cursor-nesw-resize z-50 pointer-events-auto transition-transform hover:scale-125"
                       title="Drag to resize top-right"
                     />
                     <div
                       onMouseDown={(e) => handleResizeHandleMouseDown(e, asset, 'sw')}
-                      className="absolute -bottom-2.5 -left-2.5 w-5 h-5 bg-[#2A2529] border-2 border-[#F3F0E7] rounded-full shadow-xl cursor-nesw-resize z-50 pointer-events-auto transition-transform hover:scale-125"
+                      className="absolute -bottom-2 -left-2 w-4 h-4 bg-[#FFFFFF] border border-[#000000] rounded-sm shadow-md cursor-nesw-resize z-50 pointer-events-auto transition-transform hover:scale-125"
                       title="Drag to resize bottom-left"
                     />
                     <div
                       onMouseDown={(e) => handleResizeHandleMouseDown(e, asset, 'se')}
-                      className="absolute -bottom-2.5 -right-2.5 w-5 h-5 bg-[#2A2529] border-2 border-[#F3F0E7] rounded-full shadow-xl cursor-nwse-resize z-50 pointer-events-auto transition-transform hover:scale-125"
+                      className="absolute -bottom-2 -right-2 w-4 h-4 bg-[#FFFFFF] border border-[#000000] rounded-sm shadow-md cursor-nwse-resize z-50 pointer-events-auto transition-transform hover:scale-125"
                       title="Drag to resize bottom-right"
                     />
                   </>
@@ -1069,7 +1071,7 @@ export default function WorkspaceCanvas({
 
         {/* KANTO TEXT ENGINE TRANSPARENT INTERACTIVE OVERLAY */}
         <div
-          className="absolute top-[800px] left-[800px]"
+          className="absolute top-[800px] left-[800px] pointer-events-none"
           style={{
             width: `${sceneSettings.width || 3200}px`,
             height: `${sceneSettings.height || 2400}px`,
