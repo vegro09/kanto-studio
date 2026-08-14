@@ -996,15 +996,7 @@ export default function WorkspaceCanvas({
                   />
                 )}
 
-                {(isSelected || asset.isLocked) && asset.type !== 'modular_body_part' && (
-                  <div className={`absolute -top-7 left-0 text-[#F3F0E7] text-[10px] font-mono font-medium px-2 py-0.5 rounded-md shadow flex items-center gap-1.5 ${
-                    asset.isLocked ? 'bg-amber-600' : 'bg-[#2A2529]'
-                  }`}>
-                    {asset.isLocked ? <Lock className="w-3 h-3 text-amber-300" /> : null}
-                    <span>{asset.name}</span>
-                    <span className="opacity-75 text-[9px]">Z:{asset.zIndex}</span>
-                  </div>
-                )}
+
 
                 {isSelected && !asset.isLocked && (
                   <>

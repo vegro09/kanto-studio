@@ -607,6 +607,59 @@ export default function RightPanel({
                       />
                     </div>
 
+                    {/* Font Family Selection */}
+                    <div>
+                      <label className="text-[10px] text-zinc-400 block mb-1">Font Family</label>
+                      <select
+                        value={selectedAsset.fontFamily || (selectedAsset.font && selectedAsset.font.family) || 'Cairo'}
+                        onChange={(e) => {
+                          const f = e.target.value;
+                          onUpdateAsset(selectedAsset.id, { fontFamily: f });
+                          const l = useEngineStore.getState().layers.find((layer) => layer.id === selectedAsset.id);
+                          if (l) {
+                            useEngineStore.getState().updateLayerById(selectedAsset.id, {
+                              style: { ...(l.style || {}), fontFamily: f },
+                              font: { ...(l.font || {}), family: f }
+                            });
+                          }
+                        }}
+                        className="w-full bg-[#2A2529] border border-white/15 rounded-lg px-2.5 py-1.5 text-xs text-[#F3F0E7] font-medium focus:outline-none focus:border-white/30 cursor-pointer"
+                      >
+                        <optgroup label="Arabic Master Suite">
+                          <option value="Cairo">Cairo (القاهرة)</option>
+                          <option value="Tajawal">Tajawal (تجوال)</option>
+                          <option value="Almarai">Almarai (المراعي)</option>
+                          <option value="IBM Plex Sans Arabic">IBM Plex Sans Arabic (آي بي إم)</option>
+                          <option value="Amiri">Amiri (الأميري)</option>
+                          <option value="Readex Pro">Readex Pro (ريدكس)</option>
+                          <option value="Lemonada">Lemonada (ليمونادا)</option>
+                          <option value="Changa">Changa (تشنجا)</option>
+                        </optgroup>
+                        <optgroup label="Modern English & Latin">
+                          <option value="Inter">Inter</option>
+                          <option value="Montserrat">Montserrat</option>
+                          <option value="Poppins">Poppins</option>
+                          <option value="Space Grotesk">Space Grotesk</option>
+                        </optgroup>
+                        <optgroup label="Display / Title">
+                          <option value="Bebas Neue">Bebas Neue</option>
+                          <option value="Righteous">Righteous</option>
+                          <option value="Orbitron">Orbitron</option>
+                          <option value="Cinzel">Cinzel</option>
+                          <option value="Playfair Display">Playfair Display</option>
+                        </optgroup>
+                        {Array.isArray(customFonts) && customFonts.length > 0 && (
+                          <optgroup label="Uploaded Custom Fonts">
+                            {customFonts.map((cf) => (
+                              <option key={cf.name || cf.family} value={cf.family || cf.name}>
+                                {cf.name || cf.family}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+                    </div>
+
                     {/* 2. fontSize & 3. fillColor */}
                     <div className="grid grid-cols-2 gap-2">
                       <div>
