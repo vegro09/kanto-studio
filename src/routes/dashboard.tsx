@@ -60,7 +60,8 @@ function TopBar() {
 function NewProjectCard() {
   return (
     <Link
-      to="/studio/new"
+      to="/studio/$id"
+      params={{ id: "new" }}
       className="group flex aspect-[4/3] flex-col items-center justify-center gap-4 rounded-md border border-primary bg-background p-6 transition-colors hover:bg-secondary"
     >
       <div className="flex h-14 w-14 items-center justify-center rounded-full border border-border bg-background transition-colors group-hover:bg-secondary">
@@ -70,3 +71,4 @@ function NewProjectCard() {
     </Link>
   );
 }
+
