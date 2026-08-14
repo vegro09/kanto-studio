@@ -5,6 +5,7 @@ import { renderKineticTextToCanvas } from '../utils/kineticTypography';
 import { getCanvasFilterString } from '../utils/canvasFilters';
 import { evaluateMotionPathAtTime } from '../utils/motionPathEngine';
 import { calculateInterpolatedState } from '../utils/modularCharacterEngine';
+import { useEngineStore, AnimationEngine, FontManager } from '../../modules/KantoTextEngine';
 
 // SAFE TIMELINE INITIALIZER (FIXES "initTimeline is not defined" REFERENCE ERROR)
 export const initTimeline = (timelineRef) => {
@@ -150,9 +151,151 @@ function buildCameraEvaluator(shots, cameraBase) {
   };
 }
 
+function renderExportTextLines(ctx, lines, offsetX, offsetY, lineHeight, totalHeight, isStroke) {
+  const startY = -totalHeight / 2 + lineHeight / 2;
+  for (let i = 0; i < lines.length; i++) {
+    const lineY = startY + i * lineHeight + offsetY;
+    if (isStroke) {
+      ctx.strokeText(lines[i], offsetX, lineY);
+    } else {
+      ctx.fillText(lines[i], offsetX, lineY);
+    }
+  }
+}
+
+function drawExportRoundedRect(ctx, x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + width - r, y);
+  ctx.arcTo(x + width, y, x + width, y + r, r);
+  ctx.lineTo(x + width, y + height - r);
+  ctx.arcTo(x + width, y + height, x + width - r, y + height, r);
+  ctx.lineTo(x + r, y + height);
+  ctx.arcTo(x, y + height, x, y + height - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+function renderTextLayerToContext(ctx, layer, evaluated) {
+  ctx.save();
+
+  const { x, y, scale, rotation, opacity, blur, glowBlur, glowColor } = evaluated;
+  const content = evaluated.content || '';
+
+  // Apply main transform
+  ctx.translate(x, y);
+  ctx.rotate((rotation * Math.PI) / 180);
+  ctx.scale(scale, scale);
+  ctx.globalAlpha = Math.max(0, Math.min(1, opacity));
+
+  if (blur > 0.1) {
+    ctx.filter = `blur(${blur}px)`;
+  } else {
+    ctx.filter = 'none';
+  }
+
+  // Font setup
+  const fontSize = layer.font?.size || 72;
+  const fontFamily = layer.font?.family || 'Space Grotesk';
+  const isBold = layer.style?.bold ? 'bold ' : '';
+  const isItalic = layer.style?.italic ? 'italic ' : '';
+  ctx.font = `${isItalic}${isBold}${fontSize}px "${fontFamily}", "Cairo", "Inter", sans-serif`;
+  ctx.textBaseline = 'middle';
+
+  // Alignment and RTL handling
+  const isArabic = FontManager ? FontManager.isArabicString(content) : false;
+  ctx.direction = isArabic ? 'rtl' : 'ltr';
+  const align = layer.style?.align || 'center';
+  ctx.textAlign = align;
+
+  // Measure text dimensions
+  const lines = content.split('\n');
+  const lineHeight = fontSize * (layer.style?.spacing?.line || 1.2);
+  const lineMetrics = lines.map((l) => ctx.measureText(l));
+  const maxLineWidth = Math.max(...lineMetrics.map((m) => m.width), 10);
+  const totalHeight = lines.length * lineHeight;
+
+  const bgPadding = layer.style?.background?.enabled ? (layer.style?.background?.padding || 0) : 0;
+  const boxWidth = maxLineWidth + bgPadding * 2;
+  const boxHeight = totalHeight + bgPadding * 2;
+
+  // 1. Background Box if enabled
+  if (layer.style?.background?.enabled) {
+    const bgRadius = layer.style?.background?.radius || 0;
+    const bgOpacity = layer.style?.background?.opacity ?? 0.85;
+    
+    ctx.save();
+    ctx.globalAlpha = opacity * bgOpacity;
+    ctx.fillStyle = layer.style.background.color || '#1c1c1c';
+
+    const bgX = -boxWidth / 2;
+    const bgY = -boxHeight / 2;
+
+    drawExportRoundedRect(ctx, bgX, bgY, boxWidth, boxHeight, bgRadius);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // 2. 3D Pop Shadow if enabled
+  if (layer.style?.shadow3D?.enabled && layer.style?.shadow3D.distance > 0) {
+    ctx.save();
+    ctx.fillStyle = layer.style.shadow3D.color || '#000000';
+    const dist = layer.style.shadow3D.distance;
+    const step = Math.max(1, Math.floor(dist / 4));
+    for (let i = dist; i >= 1; i -= step) {
+      renderExportTextLines(ctx, lines, i, i, lineHeight, totalHeight, false);
+    }
+    ctx.restore();
+  }
+
+  // 3. Glow if enabled
+  if (layer.style?.glow?.enabled && glowBlur > 0) {
+    ctx.save();
+    ctx.shadowColor = glowColor || '#ffffff';
+    ctx.shadowBlur = Math.min(glowBlur, 40);
+    ctx.fillStyle = glowColor || '#ffffff';
+    renderExportTextLines(ctx, lines, 0, 0, lineHeight, totalHeight, false);
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
+    ctx.restore();
+  }
+
+  // 4. Outer Stroke if enabled
+  if (layer.style?.stroke?.enabled && layer.style?.stroke?.width > 0) {
+    ctx.save();
+    ctx.strokeStyle = layer.style.stroke.color || '#000000';
+    ctx.lineWidth = layer.style.stroke.width;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    renderExportTextLines(ctx, lines, 0, 0, lineHeight, totalHeight, true);
+    ctx.restore();
+  }
+
+  // 5. Main Fill Text
+  ctx.fillStyle = layer.style?.fill || '#ffffff';
+  renderExportTextLines(ctx, lines, 0, 0, lineHeight, totalHeight, false);
+
+  // 6. Underline if enabled
+  if (layer.style?.underline) {
+    ctx.save();
+    ctx.strokeStyle = layer.style?.fill || '#ffffff';
+    ctx.lineWidth = Math.max(2, fontSize * 0.06);
+    const underlineY = totalHeight / 2 + 4;
+    ctx.beginPath();
+    ctx.moveTo(-maxLineWidth / 2, underlineY);
+    ctx.lineTo(maxLineWidth / 2, underlineY);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
 // ─── FRAME RENDERER ───────────────────────────────────────────────────────────
 
-function renderSceneToCanvas(ctx, targetW, targetH, cam, assets, sceneSettings, imageCache, timestampInSeconds) {
+function renderSceneToCanvas(ctx, targetW, targetH, cam, assets, sceneSettings, imageCache, timestampInSeconds, totalDuration = 10) {
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
 
@@ -197,7 +340,7 @@ function renderSceneToCanvas(ctx, targetW, targetH, cam, assets, sceneSettings, 
 
   for (const asset of sorted) {
     if (asset.type === 'background' || asset.isBackgroundLayer || asset.category === 'Stock') continue;
-    if (asset.type === 'audio' || asset.category === 'Audio') continue;
+    if (asset.type === 'audio' || asset.category === 'Audio' || asset.type === 'text' || asset.category === 'Text') continue;
 
     const startSec = typeof asset.startTimeSec === 'number' ? asset.startTimeSec : 0;
     let clipDuration = typeof asset.duration === 'number' && asset.duration > 0
@@ -263,9 +406,7 @@ function renderSceneToCanvas(ctx, targetW, targetH, cam, assets, sceneSettings, 
     if (fsx !== 1 || fsy !== 1) ctx.scale(fsx, fsy);
     ctx.translate(-w / 2, -h / 2);
 
-    if (asset.type === 'text') {
-      renderKineticTextToCanvas(ctx, asset, timestampInSeconds);
-    } else if (asset.type === 'modular_body_part' || asset.partType) {
+    if (asset.type === 'modular_body_part' || asset.partType) {
       ctx.save();
       const stf = Math.min(w / 160, h / 190);
       ctx.translate((w - 160 * stf) / 2, (h - 190 * stf) / 2);
@@ -305,6 +446,25 @@ function renderSceneToCanvas(ctx, targetW, targetH, cam, assets, sceneSettings, 
     ctx.filter = 'none';
     ctx.restore();
   }
+
+  // PASS 3: KANTO TEXT ENGINE LAYERS (COMPOSITE TEXT + KEYFRAMES + ANIMATIONS + EFFECTS)
+  try {
+    const textLayers = useEngineStore.getState().layers;
+    const safeTotalDuration = Math.max(totalDuration || 10, 1.0);
+    if (Array.isArray(textLayers) && textLayers.length > 0) {
+      for (const layer of textLayers) {
+        if (layer.meta?.hidden) continue;
+
+        const evaluated = AnimationEngine.evaluateLayer(layer, timestampInSeconds, safeTotalDuration);
+        if (evaluated.opacity <= 0.001) continue;
+
+        renderTextLayerToContext(ctx, layer, evaluated);
+      }
+    }
+  } catch (err) {
+    console.warn('[ExportModal] Error rendering KantoTextEngine layer:', err);
+  }
+
   ctx.restore();
 }
 
@@ -466,7 +626,7 @@ export default function ExportModal({
       const t = fi / fps;
       const cam = getCameraAtTime(t);
       if (typeof onScrubTimestamp === 'function') onScrubTimestamp(t);
-      renderSceneToCanvas(ctx, width, height, cam, assets, sceneSettings, imageCache, t);
+      renderSceneToCanvas(ctx, width, height, cam, assets, sceneSettings, imageCache, t, duration);
 
       while (encoder.encodeQueueSize > 10 && encoder.state === 'configured') {
         await new Promise((r) => setTimeout(r, 5));
@@ -521,7 +681,7 @@ export default function ExportModal({
         const canvas = document.createElement('canvas');
         canvas.width = width; canvas.height = height;
         const ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
-        renderSceneToCanvas(ctx, width, height, getCameraAtTime(0), assets, sceneSettings, imageCache, 0);
+        renderSceneToCanvas(ctx, width, height, getCameraAtTime(0), assets, sceneSettings, imageCache, 0, duration);
 
         let mimeType = 'video/webm;codecs=vp9';
         for (const t of ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8', 'video/webm']) {
@@ -562,7 +722,7 @@ export default function ExportModal({
               const t = fi / fps;
               const cam = getCameraAtTime(t);
               if (typeof onScrubTimestamp === 'function') onScrubTimestamp(t);
-              try { renderSceneToCanvas(ctx, width, height, cam, assets, sceneSettings, imageCache, t); } catch (_) {}
+              try { renderSceneToCanvas(ctx, width, height, cam, assets, sceneSettings, imageCache, t, duration); } catch (_) {}
               if (videoTrack?.requestFrame) videoTrack.requestFrame();
               await new Promise((r) => setTimeout(r, frameMs));
               const pct = Math.min(Math.round(((fi + 1) / totalFrames) * 96), 96);
