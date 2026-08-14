@@ -457,6 +457,41 @@ export class CanvasRenderer {
     return false;
   }
 
+  public getCursor(worldX: number, worldY: number, layers: KantoTextNode[]): string {
+    if (this.interactionMode === 'dragging') return 'grabbing';
+    if (this.interactionMode === 'rotating') return 'crosshair';
+    if (this.interactionMode.startsWith('resizing')) {
+      return this.interactionMode === 'resizing-tl' || this.interactionMode === 'resizing-br' ? 'nwse-resize' : 'nesw-resize';
+    }
+
+    if (this.activeLayerId) {
+      const activeBox = this.cachedBoxes.get(this.activeLayerId);
+      const activeLayer = layers.find((l) => l.id === this.activeLayerId);
+      if (activeBox && activeLayer && !activeLayer.meta?.locked) {
+        const rotPoint = this.getRotHandleWorldPos(activeBox);
+        if (Math.hypot(worldX - rotPoint.x, worldY - rotPoint.y) <= 20) {
+          return 'crosshair';
+        }
+        const cornerHit = this.checkCornerHandleHit(worldX, worldY, activeBox);
+        if (cornerHit) {
+          return cornerHit === 'resizing-tl' || cornerHit === 'resizing-br' ? 'nwse-resize' : 'nesw-resize';
+        }
+      }
+    }
+
+    // Check if hovering any visible text box
+    for (let i = layers.length - 1; i >= 0; i--) {
+      const layer = layers[i];
+      if (layer.meta?.hidden || layer.meta?.locked) continue;
+      const box = this.cachedBoxes.get(layer.id);
+      if (box && this.isPointInsideBox(worldX, worldY, box)) {
+        return 'grab';
+      }
+    }
+
+    return 'default';
+  }
+
   public handlePointerMove(worldX: number, worldY: number, layers: KantoTextNode[]) {
     if (this.interactionMode === 'none' || !this.activeLayerId) return;
 
@@ -467,16 +502,8 @@ export class CanvasRenderer {
       const dx = worldX - this.startPointerPos.x;
       const dy = worldY - this.startPointerPos.y;
 
-      let newX = this.initialLayerTransform.x + dx;
-      let newY = this.initialLayerTransform.y + dy;
-
-      // Snap to center within 10px
-      const snapThreshold = 12;
-      const centerX = this.dimensions.width / 2;
-      const centerY = this.dimensions.height / 2;
-
-      if (Math.abs(newX - centerX) < snapThreshold) newX = centerX;
-      if (Math.abs(newY - centerY) < snapThreshold) newY = centerY;
+      const newX = Math.round(this.initialLayerTransform.x + dx);
+      const newY = Math.round(this.initialLayerTransform.y + dy);
 
       this.onLayerTransformChange?.(layer.id, {
         x: newX,

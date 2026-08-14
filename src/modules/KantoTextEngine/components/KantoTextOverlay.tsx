@@ -146,6 +146,9 @@ export const KantoTextOverlay: React.FC<KantoTextOverlayProps> = ({
     const hit = rendererRef.current.handlePointerDown(coords.x, coords.y, layers);
     if (hit) {
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      if (canvasRef.current) {
+        canvasRef.current.style.cursor = rendererRef.current.getCursor(coords.x, coords.y, layers);
+      }
       e.stopPropagation();
     }
   };
@@ -155,6 +158,9 @@ export const KantoTextOverlay: React.FC<KantoTextOverlayProps> = ({
     const coords = getWorldCoordinates(e.clientX, e.clientY);
     if (!coords || !rendererRef.current) return;
     rendererRef.current.handlePointerMove(coords.x, coords.y, layers);
+    if (canvasRef.current) {
+      canvasRef.current.style.cursor = rendererRef.current.getCursor(coords.x, coords.y, layers);
+    }
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -163,6 +169,14 @@ export const KantoTextOverlay: React.FC<KantoTextOverlayProps> = ({
       (e.target as HTMLElement).releasePointerCapture(e.pointerId);
     } catch {}
     rendererRef.current?.handlePointerUp();
+    if (canvasRef.current && rendererRef.current) {
+      const coords = getWorldCoordinates(e.clientX, e.clientY);
+      if (coords) {
+        canvasRef.current.style.cursor = rendererRef.current.getCursor(coords.x, coords.y, layers);
+      } else {
+        canvasRef.current.style.cursor = 'default';
+      }
+    }
   };
 
   return (
@@ -173,9 +187,9 @@ export const KantoTextOverlay: React.FC<KantoTextOverlayProps> = ({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
-      className={`absolute inset-0 w-full h-full ${interactive ? 'pointer-events-auto cursor-crosshair' : 'pointer-events-none'}`}
+      className={`absolute inset-0 w-full h-full ${interactive ? 'pointer-events-auto cursor-default' : 'pointer-events-none'}`}
       style={{
-        zIndex: 100,
+        zIndex: 1050,
         background: 'transparent',
       }}
     />
