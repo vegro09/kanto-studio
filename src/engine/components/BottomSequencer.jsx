@@ -20,7 +20,9 @@ import {
   Plus,
   Compass,
   Shapes,
-  Sparkles
+  Sparkles,
+  Zap,
+  Radio
 } from 'lucide-react';
 import VoiceOverModal from './VoiceOverModal';
 import AudioWaveform from './AudioWaveform';

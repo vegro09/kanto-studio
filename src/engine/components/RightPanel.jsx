@@ -38,7 +38,8 @@ import {
   Activity,
   TrendingUp,
   Square,
-  User
+  User,
+  Radio
 } from 'lucide-react';
 import ModularCharacterSidebar from './ModularCharacterSidebar';
 import AudioStudioLibrary from './AudioStudioLibrary';
