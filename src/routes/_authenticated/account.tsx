@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { PricingTierCard } from "@/components/pricing-tier";
+import { useAuth } from "@/hooks/use-auth";
 
-export const Route = createFileRoute("/account")({
+export const Route = createFileRoute("/_authenticated/account")({
   head: () => ({
     meta: [
       { title: "Account — Kanto Motion" },
@@ -43,10 +44,12 @@ const tiers = [
 ];
 
 function AccountPage() {
+  const { user, signOut } = useAuth();
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border">
-        <div className="mx-auto flex h-16 max-w-5xl items-center px-6">
+        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
           <Link
             to="/dashboard"
             className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -54,11 +57,20 @@ function AccountPage() {
             <ArrowLeft className="h-4 w-4" />
             Back to Dashboard
           </Link>
+          <button
+            type="button"
+            onClick={signOut}
+            className="inline-flex items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+          >
+            Sign out
+          </button>
         </div>
       </header>
       <main className="mx-auto max-w-5xl px-6 py-12">
         <div className="mb-12 border-b border-border pb-12">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Kanto</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            {user?.email ?? "Kanto"}
+          </h1>
           <p className="mt-2 text-muted-foreground">Current plan: Creator</p>
         </div>
         <h2 className="mb-6 text-xl font-semibold text-foreground">Choose your tier</h2>
