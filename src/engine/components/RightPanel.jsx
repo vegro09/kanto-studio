@@ -45,7 +45,7 @@ import { ANIMATION_PRESETS } from '../utils/kineticTypography';
 import { VISUAL_FILTERS } from '../utils/canvasFilters';
 import BezierGraphEditor from './BezierGraphEditor';
 import { EASING_PRESETS } from '../utils/motionPathEngine';
-import { KantoTextInspector } from '../../modules/KantoTextEngine';
+import { KantoTextInspector, useEngineStore } from '../../modules/KantoTextEngine';
 
 function BezierGraphPreview({ points }) {
   const [x1, y1, x2, y2] = points || [0.42, 0, 0.58, 1];
