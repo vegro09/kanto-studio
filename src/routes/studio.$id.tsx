@@ -30,7 +30,12 @@ function StudioPage() {
   const navigate = useNavigate();
   const [title, setTitle] = useState<string>("Untitled Motion");
   const [saveStatus, setSaveStatus] = useState<string>("Saved");
+  const [mounted, setMounted] = useState(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Load project on mount or initialize if missing
   useEffect(() => {
@@ -123,13 +128,17 @@ function StudioPage() {
           id="studio-engine-placeholder"
           className="h-full w-full overflow-hidden"
         >
-          <Suspense fallback={<StudioLoader />}>
-            <StudioEngine
-              key={id}
-              projectId={id}
-              onSaveStatusChange={setSaveStatus}
-            />
-          </Suspense>
+          {mounted ? (
+            <Suspense fallback={<StudioLoader />}>
+              <StudioEngine
+                key={id}
+                projectId={id}
+                onSaveStatusChange={setSaveStatus}
+              />
+            </Suspense>
+          ) : (
+            <StudioLoader />
+          )}
         </div>
       </main>
     </div>
