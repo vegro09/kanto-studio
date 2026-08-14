@@ -68,6 +68,14 @@ function renderCategoryLanes(items) {
     .map(([laneIndex, laneItems]) => ({ laneIndex, laneItems }));
 }
 
+function renderDedicatedLanes(items) {
+  if (!items || items.length === 0) return [];
+  return items.map((item, idx) => ({
+    laneIndex: idx,
+    laneItems: [item]
+  }));
+}
+
 export default function BottomSequencer({
   shots = [],
   assets = [],
@@ -403,7 +411,7 @@ export default function BottomSequencer({
   const videoLanes = renderCategoryLanes((assets || []).filter((a) => a && (a.type === 'video' || a.category === 'Videos')));
   const iconLanes = renderCategoryLanes((assets || []).filter((a) => isIconElement(a)));
   const imageLanes = renderCategoryLanes((assets || []).filter((a) => a && (a.type === 'image' || a.type === 'background' || a.category === 'Images') && !isIconElement(a)));
-  const textLanes = renderCategoryLanes((assets || []).filter((a) => a && a.type === 'text'));
+  const textLanes = renderDedicatedLanes((assets || []).filter((a) => a && a.type === 'text'));
   const audioLanes = renderCategoryLanes((assets || []).filter((a) => a && (a.type === 'audio' || a.category === 'Audio')));
 
   return (

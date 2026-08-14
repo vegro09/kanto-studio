@@ -24,6 +24,15 @@ export class CanvasRenderer {
   private initialLayerTransform: { x: number; y: number; scale: number; rotation: number } = { x: 0, y: 0, scale: 1, rotation: 0 };
   private cachedBoxes: Map<string, BoundingBox> = new Map();
 
+  // High-performance OffscreenCanvas Cache for static text layers
+  private staticCache: Map<string, {
+    canvas: HTMLCanvasElement;
+    boxWidth: number;
+    boxHeight: number;
+    maxLineWidth: number;
+    totalHeight: number;
+  }> = new Map();
+
   // Callbacks
   private onLayerTransformChange?: (layerId: string, transform: { x: number; y: number; scale: number; rotation: number }) => void;
   private onLayerSelect?: (layerId: string | null) => void;
@@ -112,10 +121,12 @@ export class CanvasRenderer {
     ctx.translate(x, y);
     ctx.rotate((rotation * Math.PI) / 180);
     ctx.scale(scale, scale);
-    ctx.globalAlpha = opacity;
+    ctx.globalAlpha = Math.max(0, Math.min(1, opacity));
 
-    if (blur > 0) {
+    if (blur > 0.1) {
       ctx.filter = `blur(${blur}px)`;
+    } else {
+      ctx.filter = 'none';
     }
 
     // Font setup
@@ -134,17 +145,17 @@ export class CanvasRenderer {
 
     // Measure text dimensions
     const lines = content.split('\n');
-    const lineHeight = fontSize * (layer.style.spacing.line || 1.2);
+    const lineHeight = fontSize * (layer.style.spacing?.line || 1.2);
     const lineMetrics = lines.map((l) => ctx.measureText(l));
     const maxLineWidth = Math.max(...lineMetrics.map((m) => m.width), 10);
     const totalHeight = lines.length * lineHeight;
 
-    const bgPadding = layer.style.background.enabled ? layer.style.background.padding : 0;
+    const bgPadding = layer.style.background?.enabled ? (layer.style.background.padding || 0) : 0;
     const boxWidth = maxLineWidth + bgPadding * 2;
     const boxHeight = totalHeight + bgPadding * 2;
 
     // 1. Background Box if enabled
-    if (layer.style.background.enabled) {
+    if (layer.style.background?.enabled) {
       const bgRadius = layer.style.background.radius || 0;
       const bgOpacity = layer.style.background.opacity ?? 0.85;
       
@@ -160,29 +171,32 @@ export class CanvasRenderer {
       ctx.restore();
     }
 
-    // 2. 3D Pop Shadow if enabled
+    // 2. 3D Pop Shadow if enabled (optimized step loop)
     if (layer.style.shadow3D?.enabled && layer.style.shadow3D.distance > 0) {
       ctx.save();
       ctx.fillStyle = layer.style.shadow3D.color;
       const dist = layer.style.shadow3D.distance;
-      for (let i = dist; i >= 1; i--) {
+      const step = Math.max(1, Math.floor(dist / 4));
+      for (let i = dist; i >= 1; i -= step) {
         this.renderTextLines(ctx, lines, i, i, lineHeight, totalHeight, false);
       }
       ctx.restore();
     }
 
     // 3. Glow if enabled
-    if (layer.style.glow.enabled && glowBlur > 0) {
+    if (layer.style.glow?.enabled && glowBlur > 0) {
       ctx.save();
       ctx.shadowColor = glowColor;
-      ctx.shadowBlur = glowBlur;
+      ctx.shadowBlur = Math.min(glowBlur, 40);
       ctx.fillStyle = glowColor;
       this.renderTextLines(ctx, lines, 0, 0, lineHeight, totalHeight, false);
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = 'transparent';
       ctx.restore();
     }
 
     // 4. Outer Stroke if enabled
-    if (layer.style.stroke.enabled && layer.style.stroke.width > 0) {
+    if (layer.style.stroke?.enabled && layer.style.stroke.width > 0) {
       ctx.save();
       ctx.strokeStyle = layer.style.stroke.color;
       ctx.lineWidth = layer.style.stroke.width;

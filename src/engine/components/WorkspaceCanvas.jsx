@@ -855,8 +855,8 @@ export default function WorkspaceCanvas({
           }
         })}
 
-        {/* LAYER 1: VISUAL SCENE ASSETS (EXCLUDES AUDIO TRACK CLIPS) */}
-        {sortedAssets.filter((a) => a && a.type !== 'audio' && a.category !== 'Audio').map((asset) => {
+        {/* LAYER 1: VISUAL SCENE ASSETS (EXCLUDES AUDIO AND TEXT ASSETS MANAGED BY KANTO TEXT OVERLAY) */}
+        {sortedAssets.filter((a) => a && a.type !== 'audio' && a.type !== 'text' && a.category !== 'Audio' && a.category !== 'Text').map((asset) => {
           const isSelected = selectedAssetId === asset.id;
           const currentSec = (playbackProgress || 0) * (totalDuration || 10);
 

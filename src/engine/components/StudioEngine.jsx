@@ -1386,34 +1386,49 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
     setPlaybackProgress(clampedTime / safeDuration);
   };
 
-  // TASK 1: TRUE SECONDS REAL-TIME DELTA CLOCK (1 Timeline Second = 1 Real-World Second)
+  // TASK 1: HIGH-PERFORMANCE DECOUPLED DELTA CLOCK (60+ FPS ZERO DOM LAG)
+  const playbackProgressRef = useRef(playbackProgress);
+  playbackProgressRef.current = playbackProgress;
+
   useEffect(() => {
     if (!isPlaying) return;
 
     let animFrameId = null;
     let lastTime = performance.now();
+    let lastReactUpdate = performance.now();
+    const safeDuration = Math.max(totalDuration || 10, 1.0);
 
     const tick = (now) => {
       const deltaSec = Math.max(0, (now - lastTime) / 1000);
       lastTime = now;
 
-      const safeDuration = Math.max(totalDuration || 10, 1.0);
+      const currentSec = playbackProgressRef.current * safeDuration;
+      let nextSec = currentSec + deltaSec;
 
-      setPlaybackProgress((prevProg) => {
-        const currentSec = prevProg * safeDuration;
-        const nextSec = currentSec + deltaSec;
-
-        if (nextSec >= safeDuration) {
-          if (isLooping) {
-            return 0;
-          } else {
-            setIsPlaying(false);
-            return 1.0;
-          }
+      if (nextSec >= safeDuration) {
+        if (isLooping) {
+          nextSec = 0;
+          playbackProgressRef.current = 0;
+          useEngineStore.getState().setCurrentTime(0);
+          setPlaybackProgress(0);
+        } else {
+          playbackProgressRef.current = 1.0;
+          useEngineStore.getState().setCurrentTime(safeDuration);
+          setIsPlaying(false);
+          setPlaybackProgress(1.0);
+          return;
         }
+      } else {
+        const nextProgress = nextSec / safeDuration;
+        playbackProgressRef.current = nextProgress;
+        useEngineStore.getState().setCurrentTime(nextSec);
 
-        return nextSec / safeDuration;
-      });
+        // Throttle heavy React DOM tree reconciliation to ~30fps while canvas runs at full 60fps
+        if (now - lastReactUpdate >= 32) {
+          lastReactUpdate = now;
+          setPlaybackProgress(nextProgress);
+        }
+      }
 
       animFrameId = requestAnimationFrame(tick);
     };

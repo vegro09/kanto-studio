@@ -497,7 +497,6 @@ export default function LeftPanel({
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => {
-                      useEngineStore.getState().addLayer('KANTO MOTION');
                       if (onAddTextAsset) onAddTextAsset();
                     }}
                     className="bg-[#F3F0E7] text-[#2A2529] hover:bg-white text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
