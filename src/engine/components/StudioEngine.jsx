@@ -1274,7 +1274,7 @@ export default function StudioEngine() {
   const activeShotName = activeShotIndex >= 0 ? shots[activeShotIndex].name : '';
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-[#181416] text-[#F3F0E7] overflow-hidden font-sans select-none">
+    <div className="flex flex-col h-full w-full bg-[#181416] text-[#F3F0E7] overflow-hidden font-sans select-none">
       {/* Main Workspace Body */}
       <div className="flex-1 flex overflow-hidden relative">
         {/* 2. Left Panel */}
