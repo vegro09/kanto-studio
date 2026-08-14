@@ -21,12 +21,54 @@ import {
   Target
 } from 'lucide-react';
 import { DEFAULT_DEMO_PROJECT } from '../data/presetAssets';
+import { getProject, saveProject } from '../../lib/projectStore';
 
-export default function StudioEngine() {
-  // Core Application State
-  const [assets, setAssets] = useState(DEFAULT_DEMO_PROJECT.assets);
-  const [camera, setCamera] = useState(DEFAULT_DEMO_PROJECT.camera);
-  const [shots, setShots] = useState(DEFAULT_DEMO_PROJECT.shots);
+export default function StudioEngine({ projectId, onSaveStatusChange }) {
+  // Core Application State - Restored from localStorage on initial mount
+  const [assets, setAssets] = useState(() => {
+    if (!projectId) return DEFAULT_DEMO_PROJECT.assets;
+    try {
+      const project = getProject(projectId);
+      if (project) {
+        const raw = project.elements || project.assets;
+        if (Array.isArray(raw) && raw.length > 0) {
+          return raw;
+        }
+      }
+    } catch (e) {
+      console.error('[StudioEngine] Failed to restore elements from storage:', e);
+    }
+    return DEFAULT_DEMO_PROJECT.assets;
+  });
+
+  const [camera, setCamera] = useState(() => {
+    if (!projectId) return DEFAULT_DEMO_PROJECT.camera;
+    try {
+      const project = getProject(projectId);
+      if (project && project.camera && typeof project.camera.x === 'number') {
+        return project.camera;
+      }
+    } catch (e) {
+      console.error('[StudioEngine] Failed to restore camera from storage:', e);
+    }
+    return DEFAULT_DEMO_PROJECT.camera;
+  });
+
+  const [shots, setShots] = useState(() => {
+    if (!projectId) return DEFAULT_DEMO_PROJECT.shots;
+    try {
+      const project = getProject(projectId);
+      if (project) {
+        const rawShots = project.shots || project.timeline?.shots;
+        if (Array.isArray(rawShots)) {
+          return rawShots;
+        }
+      }
+    } catch (e) {
+      console.error('[StudioEngine] Failed to restore shots from storage:', e);
+    }
+    return DEFAULT_DEMO_PROJECT.shots;
+  });
 
   // Background Pre-rendering Lazy Cache Ref
   const renderedFramesCacheRef = useRef({});
@@ -50,12 +92,73 @@ export default function StudioEngine() {
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
 
   // Scene & Background Settings State
-  const [sceneSettings, setSceneSettings] = useState({
-    width: 3200,
-    height: 2400,
-    bgColor: '#FFFFFF',
-    texture: 'lines'
+  const [sceneSettings, setSceneSettings] = useState(() => {
+    const defaultScene = {
+      width: 3200,
+      height: 2400,
+      bgColor: '#FFFFFF',
+      texture: 'lines'
+    };
+    if (!projectId) return defaultScene;
+    try {
+      const project = getProject(projectId);
+      if (project && project.sceneSettings) {
+        return { ...defaultScene, ...project.sceneSettings };
+      }
+    } catch (e) {
+      console.error('[StudioEngine] Failed to restore sceneSettings from storage:', e);
+    }
+    return defaultScene;
   });
+
+  // ─── DEBOUNCED AUTO-SAVE TO LOCALSTORAGE (500ms) ──────────────────────────
+  const isInitialMountRef = useRef(true);
+  const autoSaveTimerRef = useRef(null);
+
+  useEffect(() => {
+    if (!projectId) return;
+
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      return;
+    }
+
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+
+    if (typeof onSaveStatusChange === 'function') {
+      onSaveStatusChange('Saving…');
+    }
+
+    autoSaveTimerRef.current = setTimeout(() => {
+      try {
+        saveProject({
+          id: projectId,
+          elements: assets,
+          assets: assets,
+          camera: camera,
+          shots: shots,
+          timeline: {
+            shots: shots,
+            duration: totalDuration
+          },
+          sceneSettings: sceneSettings
+        });
+        if (typeof onSaveStatusChange === 'function') {
+          onSaveStatusChange('Auto-saved');
+        }
+      } catch (err) {
+        console.error('[StudioEngine] Auto-save error:', err);
+      }
+    }, 500);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [projectId, assets, camera, shots, sceneSettings, totalDuration]);
 
   // View Mode: 'director' vs 'camera'
   const [viewMode, setViewMode] = useState('director');

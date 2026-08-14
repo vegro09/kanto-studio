@@ -124,7 +124,11 @@ function StudioPage() {
           className="h-full w-full overflow-hidden"
         >
           <Suspense fallback={<StudioLoader />}>
-            <StudioEngine />
+            <StudioEngine
+              key={id}
+              projectId={id}
+              onSaveStatusChange={setSaveStatus}
+            />
           </Suspense>
         </div>
       </main>
