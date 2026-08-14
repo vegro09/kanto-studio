@@ -70,6 +70,13 @@ class FontManagerClass {
       document.head.appendChild(style);
     }
 
+    // 3. Ensure document fonts engine readiness
+    try {
+      await document.fonts.load(`16px "${fontName}"`);
+    } catch (e) {
+      // Ignore readiness check warning
+    }
+
     const isArabicSample = this.isArabicString(file.name);
     const customItem: CustomFontItem = {
       name: cleanName,
