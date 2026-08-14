@@ -1093,8 +1093,87 @@ export default function WorkspaceCanvas({
           />
         </div>
 
-        {/* LAYER 2: CLEAN INFINITE WORKSPACE (NO UNWANTED VIEWPORT BORDERS OR OVERLAYS) */}
-        <div ref={viewfinderRef} className="hidden pointer-events-none" />
+        {/* LAYER 2: INTERACTIVE CAMERA VIEWFINDER FRAME */}
+        {(() => {
+          let camX = typeof camera.x === 'number' && Number.isFinite(camera.x) ? camera.x : 0;
+          let camY = typeof camera.y === 'number' && Number.isFinite(camera.y) ? camera.y : 0;
+
+          if (camera.motionPath && camera.motionPath.isPathEnabled) {
+            try {
+              const currentSec = (playbackProgress || 0) * (totalDuration || 10);
+              const clipDuration = Math.max(0.0001, camera.duration || (totalDuration || 10));
+
+              const evaluated = evaluateMotionPathAtTime(
+                camera.motionPath,
+                camera.startTimeSec || 0,
+                clipDuration,
+                currentSec
+              );
+
+              if (evaluated && Number.isFinite(evaluated.x) && Number.isFinite(evaluated.y) && !isNaN(evaluated.x) && !isNaN(evaluated.y)) {
+                const halfW = ((camera.width || 270) * (camera.scale || 1)) / 2;
+                const halfH = ((camera.height || 480) * (camera.scale || 1)) / 2;
+                camX = evaluated.x - halfW;
+                camY = evaluated.y - halfH;
+              }
+            } catch (err) {
+              console.error("Camera Motion Path Evaluation Error:", err);
+            }
+          }
+
+          return (
+            <div
+              ref={viewfinderRef}
+              onMouseDown={handleCameraPointerDown}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                position: 'absolute',
+                left: `${camX}px`,
+                top: `${camY}px`,
+                width: `${(camera.width || 270) * (camera.scale || 1)}px`,
+                height: `${(camera.height || 480) * (camera.scale || 1)}px`,
+                zIndex: 2000,
+                cursor: camera.isLocked ? 'default' : 'move'
+              }}
+              className="group select-none"
+            >
+              <div
+                className={`w-full h-full relative rounded-xl border-2 transition-all ${
+                  isCameraSelected 
+                    ? 'border-[#2A2529] ring-4 ring-[#2A2529]/20 shadow-2xl bg-[#2A2529]/5' 
+                    : 'border-[#2A2529]/80 shadow-xl bg-[#2A2529]/5 hover:border-[#2A2529]'
+                }`}
+              >
+                {/* Rule of Thirds Overlay Grid */}
+                {camera.showGrid && (
+                  <div className="absolute inset-0 pointer-events-none grid grid-cols-3 grid-rows-3">
+                    <div className="border-r border-b border-[#2A2529]/30" />
+                    <div className="border-r border-b border-[#2A2529]/30" />
+                    <div className="border-b border-[#2A2529]/30" />
+                    <div className="border-r border-b border-[#2A2529]/30" />
+                    <div className="border-r border-b border-[#2A2529]/30" />
+                    <div className="border-b border-[#2A2529]/30" />
+                    <div className="border-r border-b border-[#2A2529]/30" />
+                    <div className="border-r border-b border-[#2A2529]/30" />
+                    <div className="" />
+                  </div>
+                )}
+
+                {/* Center Crosshair Reticle */}
+                <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                  <div className="w-4 h-px bg-[#2A2529]/60" />
+                  <div className="h-4 w-px bg-[#2A2529]/60 absolute" />
+                </div>
+
+                {/* 4 Corner L-Bracket Guides */}
+                <div className="absolute top-1 left-1 w-3 h-3 border-t-2 border-l-2 border-[#2A2529] pointer-events-none" />
+                <div className="absolute top-1 right-1 w-3 h-3 border-t-2 border-r-2 border-[#2A2529] pointer-events-none" />
+                <div className="absolute bottom-1 left-1 w-3 h-3 border-b-2 border-l-2 border-[#2A2529] pointer-events-none" />
+                <div className="absolute bottom-1 right-1 w-3 h-3 border-b-2 border-r-2 border-[#2A2529] pointer-events-none" />
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </main>
   );
