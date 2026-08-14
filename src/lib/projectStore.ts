@@ -42,6 +42,7 @@ export interface ProjectData {
   lastModified: string;
   elements: any[];
   assets?: any[];
+  textLayers?: any[];
   camera: CameraState;
   timeline: TimelineState;
   shots?: ShotKeyframe[];

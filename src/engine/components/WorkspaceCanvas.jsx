@@ -4,6 +4,7 @@ import KineticTextCanvas from './KineticTextCanvas';
 import { getCanvasFilterString } from '../utils/canvasFilters';
 import { evaluatePath, evaluateMotionPathAtTime, calculatePathPosition } from '../utils/motionPathEngine';
 import { clampJointRotation, calculateInterpolatedState } from '../utils/modularCharacterEngine';
+import { KantoTextOverlay } from '../../modules/KantoTextEngine';
 
 export default function WorkspaceCanvas({
   assets,
@@ -25,7 +26,8 @@ export default function WorkspaceCanvas({
   playbackProgress = 0,
   totalDuration = 10,
   onAddAsset,
-  onAddModularPart
+  onAddModularPart,
+  onSelectTextLayer
 }) {
   const viewportRef = useRef(null);
 
@@ -1111,6 +1113,28 @@ export default function WorkspaceCanvas({
             </div>
           );
         })}
+
+        {/* KANTO TEXT ENGINE TRANSPARENT INTERACTIVE OVERLAY */}
+        <div
+          className="absolute top-[800px] left-[800px]"
+          style={{
+            width: `${sceneSettings.width || 3200}px`,
+            height: `${sceneSettings.height || 2400}px`,
+            zIndex: 1050,
+          }}
+        >
+          <KantoTextOverlay
+            currentTimeSec={(playbackProgress || 0) * (totalDuration || 10)}
+            totalDurationSec={totalDuration || 10}
+            isPlaying={isPlaying}
+            sceneWidth={sceneSettings.width || 3200}
+            sceneHeight={sceneSettings.height || 2400}
+            interactive={!isPanMode}
+            onSelectLayer={(layerId) => {
+              if (onSelectTextLayer) onSelectTextLayer(layerId);
+            }}
+          />
+        </div>
 
         {/* LAYER 2: CLEAN CAMERA VIEWFINDER FRAME (WITH PERFECT PHASE-MATCHING PARITY) */}
         {(() => {

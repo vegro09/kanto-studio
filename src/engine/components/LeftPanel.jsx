@@ -17,6 +17,7 @@ import {
   PanelLeftOpen
 } from 'lucide-react';
 import { PROTOTYPING_ASSETS } from '../utils/prototypingAssets';
+import { useEngineStore } from '../../modules/KantoTextEngine';
 
 // INTERACTIVE VIDEO LIBRARY CARD COMPONENT WITH LIVE HOVER PREVIEW & NATIVE ASPECT RATIO DETECTOR
 function VideoLibraryCard({ video, onAddAsset }) {
@@ -495,8 +496,11 @@ export default function LeftPanel({
                 <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Typography & Fonts</p>
                 <div className="grid grid-cols-2 gap-2">
                   <button
-                    onClick={onAddTextAsset}
-                    className="bg-[#F3F0E7] text-[#2A2529] hover:bg-white text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95"
+                    onClick={() => {
+                      useEngineStore.getState().addLayer('KANTO MOTION');
+                      if (onAddTextAsset) onAddTextAsset();
+                    }}
+                    className="bg-[#F3F0E7] text-[#2A2529] hover:bg-white text-xs font-semibold py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
                   >
                     <Type className="w-4 h-4" />
                     <span>Add Text</span>

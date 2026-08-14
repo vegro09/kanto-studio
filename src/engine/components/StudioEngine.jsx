@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { DEFAULT_DEMO_PROJECT } from '../data/presetAssets';
 import { getProject, saveProject } from '../../lib/projectStore';
+import { useEngineStore } from '../../modules/KantoTextEngine';
 
 export default function StudioEngine({ projectId, onSaveStatusChange }) {
   // Core Application State - Restored from localStorage on initial mount
@@ -158,6 +159,59 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
         clearTimeout(autoSaveTimerRef.current);
       }
     };
+  }, [projectId, assets, camera, shots, sceneSettings, totalDuration]);
+
+  // ─── KANTO TEXT ENGINE PLAYHEAD & TIMELINE SYNCHRONIZATION ──────────────────
+  useEffect(() => {
+    const currentSec = (playbackProgress || 0) * (totalDuration || 10);
+    useEngineStore.getState().setCurrentTime(currentSec);
+    useEngineStore.getState().setTotalDuration(totalDuration || 10);
+    useEngineStore.getState().setIsPlaying(isPlaying);
+  }, [playbackProgress, totalDuration, isPlaying]);
+
+  // Restore saved text layers from project
+  useEffect(() => {
+    if (!projectId) return;
+    try {
+      const project = getProject(projectId);
+      if (project && Array.isArray(project.textLayers) && project.textLayers.length > 0) {
+        useEngineStore.getState().importData(project.textLayers);
+      }
+    } catch (e) {
+      console.error('[StudioEngine] Failed to restore text layers:', e);
+    }
+  }, [projectId]);
+
+  // Auto-save text layers when modified
+  useEffect(() => {
+    const unsub = useEngineStore.subscribe((state) => {
+      if (!projectId) return;
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = setTimeout(() => {
+        try {
+          saveProject({
+            id: projectId,
+            elements: assets,
+            textLayers: state.layers,
+            assets: assets,
+            camera: camera,
+            shots: shots,
+            timeline: {
+              shots: shots,
+              duration: totalDuration
+            },
+            sceneSettings: sceneSettings
+          });
+          if (typeof onSaveStatusChange === 'function') {
+            onSaveStatusChange('Auto-saved');
+          }
+        } catch (err) {
+          console.error('[StudioEngine] Auto-save text layers error:', err);
+        }
+      }, 500);
+    });
+
+    return () => unsub();
   }, [projectId, assets, camera, shots, sceneSettings, totalDuration]);
 
   // View Mode: 'director' vs 'camera'
@@ -1517,12 +1571,15 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
 
             {/* Add Text Asset */}
             <button
-              onClick={handleAddTextAsset}
+              onClick={() => {
+                setIsRightPanelOpen(true);
+                useEngineStore.getState().addLayer('KANTO MOTION');
+              }}
               className="px-2 py-1 text-zinc-300 hover:text-[#F3F0E7] hover:bg-white/10 rounded-lg text-[10px] font-mono flex items-center gap-1 transition-all cursor-pointer"
-              title="Add Kinetic Text Layer"
+              title="Add Kanto Text Engine Layer"
             >
-              <Type className="w-3.5 h-3.5 text-purple-400" />
-              <span>Add Text</span>
+              <Type className="w-3.5 h-3.5 text-blue-400" />
+              <span>Text</span>
             </button>
 
             <div className="h-3.5 w-px bg-white/15 mx-0.5" />

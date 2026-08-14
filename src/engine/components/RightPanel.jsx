@@ -45,6 +45,7 @@ import { ANIMATION_PRESETS } from '../utils/kineticTypography';
 import { VISUAL_FILTERS } from '../utils/canvasFilters';
 import BezierGraphEditor from './BezierGraphEditor';
 import { EASING_PRESETS } from '../utils/motionPathEngine';
+import { KantoTextInspector } from '../../modules/KantoTextEngine';
 
 function BezierGraphPreview({ points }) {
   const [x1, y1, x2, y2] = points || [0.42, 0, 0.58, 1];
@@ -283,11 +284,11 @@ export default function RightPanel({
             </div>
           </div>
 
-          {/* TWO MAIN MODE TABS: INSPECTOR vs MODULAR CHARACTER ASSEMBLY */}
+          {/* THREE MAIN MODE TABS: INSPECTOR | TEXT ENGINE | CHARACTER RIG */}
           <div className="flex bg-[#1E191C] p-1 rounded-xl border border-white/10 gap-1">
             <button
               onClick={() => setRightPanelTab('inspector')}
-              className={`flex-1 py-1 px-2 text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              className={`flex-1 py-1 px-1.5 text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer ${
                 rightPanelTab === 'inspector'
                   ? 'bg-[#F3F0E7] text-[#2A2529] font-bold shadow-xs'
                   : 'text-zinc-400 hover:text-[#F3F0E7]'
@@ -297,15 +298,26 @@ export default function RightPanel({
               <span>Inspector</span>
             </button>
             <button
+              onClick={() => setRightPanelTab('text_engine')}
+              className={`flex-1 py-1 px-1.5 text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                rightPanelTab === 'text_engine'
+                  ? 'bg-blue-600 text-white font-bold shadow-xs'
+                  : 'text-zinc-400 hover:text-[#F3F0E7]'
+              }`}
+            >
+              <Type className="w-3 h-3" />
+              <span>Text Engine</span>
+            </button>
+            <button
               onClick={() => setRightPanelTab('character_assembly')}
-              className={`flex-1 py-1 px-2 text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+              className={`flex-1 py-1 px-1.5 text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer ${
                 rightPanelTab === 'character_assembly'
                   ? 'bg-purple-600 text-white font-bold shadow-xs'
                   : 'text-purple-300/70 hover:text-purple-200'
               }`}
             >
               <User className="w-3 h-3" />
-              <span>Character Rig</span>
+              <span>Rig</span>
             </button>
           </div>
 
@@ -319,7 +331,11 @@ export default function RightPanel({
           </button>
         </div>
 
-        {rightPanelTab === 'character_assembly' ? (
+        {rightPanelTab === 'text_engine' ? (
+          <div className="flex-1 overflow-hidden h-full flex flex-col bg-[#0c0c0c]">
+            <KantoTextInspector />
+          </div>
+        ) : rightPanelTab === 'character_assembly' ? (
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             <ModularCharacterSidebar
               selectedAsset={selectedAsset}

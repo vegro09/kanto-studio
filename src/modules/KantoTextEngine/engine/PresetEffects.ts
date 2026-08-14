@@ -1,0 +1,88 @@
+import type { PresetEffect } from '../types/engine';
+
+export const PRESET_EFFECTS: PresetEffect[] = [
+  {
+    id: 'minimal-noir',
+    name: 'Minimal Noir',
+    previewClass: 'bg-white text-black font-bold tracking-tight',
+    style: {
+      fill: '#ffffff',
+      opacity: 1,
+      stroke: { enabled: true, color: '#000000', width: 3 },
+      glow: { enabled: false, color: '#ffffff', blur: 0 },
+      background: { enabled: false, color: '#000000', radius: 0, padding: 0, opacity: 0 },
+      spacing: { char: 1, line: 1.2 },
+      shadow3D: { enabled: false, color: '#000000', distance: 0 },
+    },
+  },
+  {
+    id: 'badge-box',
+    name: 'Badge Box',
+    previewClass: 'bg-white text-black font-bold px-3 py-1 rounded',
+    style: {
+      fill: '#000000',
+      opacity: 1,
+      stroke: { enabled: false, color: '#000000', width: 0 },
+      glow: { enabled: false, color: '#ffffff', blur: 0 },
+      background: { enabled: true, color: '#ffffff', radius: 12, padding: 18, opacity: 1 },
+      spacing: { char: 1, line: 1.2 },
+      shadow3D: { enabled: false, color: '#000000', distance: 0 },
+    },
+  },
+  {
+    id: 'neon-cyber',
+    name: 'Neon Cyber',
+    previewClass: 'text-white border border-white/60 shadow-[0_0_12px_rgba(255,255,255,0.8)]',
+    style: {
+      fill: '#ffffff',
+      opacity: 1,
+      stroke: { enabled: true, color: '#ffffff', width: 2 },
+      glow: { enabled: true, color: '#ffffff', blur: 22 },
+      background: { enabled: false, color: '#000000', radius: 8, padding: 12, opacity: 0 },
+      spacing: { char: 2, line: 1.2 },
+      shadow3D: { enabled: false, color: '#000000', distance: 0 },
+    },
+  },
+  {
+    id: '3d-pop-shadow',
+    name: '3D Pop Shadow',
+    previewClass: 'text-white drop-shadow-[4px_4px_0px_rgba(255,255,255,0.3)]',
+    style: {
+      fill: '#ffffff',
+      opacity: 1,
+      stroke: { enabled: true, color: '#000000', width: 4 },
+      glow: { enabled: false, color: '#ffffff', blur: 0 },
+      background: { enabled: false, color: '#000000', radius: 0, padding: 0, opacity: 0 },
+      spacing: { char: 1, line: 1.1 },
+      shadow3D: { enabled: true, color: '#555555', distance: 8 },
+    },
+  },
+  {
+    id: 'luxury-gold',
+    name: 'Luxury Frame',
+    previewClass: 'text-white border border-dashed border-white/80 px-2 py-1',
+    style: {
+      fill: '#ffffff',
+      opacity: 1,
+      stroke: { enabled: true, color: '#262626', width: 2 },
+      glow: { enabled: true, color: '#ffffff', blur: 14 },
+      background: { enabled: true, color: '#141414', radius: 10, padding: 16, opacity: 0.9 },
+      spacing: { char: 3, line: 1.3 },
+      shadow3D: { enabled: false, color: '#000000', distance: 0 },
+    },
+  },
+  {
+    id: 'frosted-glass',
+    name: 'Frosted Glass',
+    previewClass: 'bg-white/10 text-white border border-white/30 backdrop-blur-md',
+    style: {
+      fill: '#ffffff',
+      opacity: 0.95,
+      stroke: { enabled: false, color: '#ffffff', width: 0 },
+      glow: { enabled: false, color: '#ffffff', blur: 0 },
+      background: { enabled: true, color: '#ffffff', radius: 18, padding: 20, opacity: 0.15 },
+      spacing: { char: 1, line: 1.2 },
+      shadow3D: { enabled: false, color: '#000000', distance: 0 },
+    },
+  },
+];
