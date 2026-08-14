@@ -1016,31 +1016,15 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
     showToast(`Added asset "${newAsset.name}" to active scene`, 'success');
   };
 
-  const handleAddTextAsset = () => {
-    const newTextAsset = {
-      id: `asset-${Date.now()}`,
-      name: 'Text Node',
-      type: 'text',
-      textContent: 'الرسوم المتحركة 2D Animatic',
-      fontFamily: 'Cairo',
-      fontSize: 36,
-      textColor: '#ffffff',
-      textAlign: 'center',
-      x: camera.x + 20,
-      y: camera.y + 160,
-      scale: 1.0,
-      rotation: 0,
-      opacity: 1.0,
-      zIndex: assets.length > 0 ? Math.max(...assets.map((a) => a.zIndex)) + 1 : 1,
-      width: 320,
-      height: 120,
-      isLocked: false
-    };
+  const handleAddTextAsset = (customText) => {
+    const camW = (camera?.width || 270) * (camera?.scale || 1);
+    const camH = (camera?.height || 480) * (camera?.scale || 1);
+    const camCenterX = (camera?.x || 0) + camW / 2;
+    const camCenterY = (camera?.y || 0) + camH / 2;
 
-    setAssets((prev) => [...prev, newTextAsset]);
-    setSelectedAssetId(newTextAsset.id);
-    setIsCameraSelected(false);
-    showToast('Added Text element (Arabic / English)', 'success');
+    useEngineStore.getState().addLayer(customText || 'KANTO MOTION', false, camCenterX, camCenterY);
+    setIsRightPanelOpen(true);
+    showToast('Added Text Object to Canvas', 'success');
   };
 
   const handleUpdateAsset = (id, updates) => {
@@ -1571,10 +1555,7 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
 
             {/* Add Text Asset */}
             <button
-              onClick={() => {
-                setIsRightPanelOpen(true);
-                useEngineStore.getState().addLayer('KANTO MOTION');
-              }}
+              onClick={() => handleAddTextAsset()}
               className="px-2 py-1 text-zinc-300 hover:text-[#F3F0E7] hover:bg-white/10 rounded-lg text-[10px] font-mono flex items-center gap-1 transition-all cursor-pointer"
               title="Add Kanto Text Engine Layer"
             >

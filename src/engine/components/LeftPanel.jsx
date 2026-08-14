@@ -512,10 +512,17 @@ export default function LeftPanel({
                     <input
                       type="file"
                       accept=".ttf,.woff,.woff2,.otf"
-                      onChange={(e) => {
+                      onChange={async (e) => {
                         const file = e.target.files && e.target.files[0];
-                        if (file && onUploadCustomFont) {
-                          onUploadCustomFont(file);
+                        if (file) {
+                          try {
+                            await useEngineStore.getState().uploadCustomFont(file);
+                          } catch (err) {
+                            console.error("Failed to upload font to text engine:", err);
+                          }
+                          if (onUploadCustomFont) {
+                            onUploadCustomFont(file);
+                          }
                         }
                         e.target.value = '';
                       }}

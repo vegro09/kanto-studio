@@ -4,7 +4,7 @@ import KineticTextCanvas from './KineticTextCanvas';
 import { getCanvasFilterString } from '../utils/canvasFilters';
 import { evaluatePath, evaluateMotionPathAtTime, calculatePathPosition } from '../utils/motionPathEngine';
 import { clampJointRotation, calculateInterpolatedState } from '../utils/modularCharacterEngine';
-import { KantoTextOverlay } from '../../modules/KantoTextEngine';
+import { KantoTextOverlay, useEngineStore } from '../../modules/KantoTextEngine';
 
 export default function WorkspaceCanvas({
   assets,
@@ -163,6 +163,7 @@ export default function WorkspaceCanvas({
       if (isClickOnCanvasBackground) {
         onSelectAsset(null);
         onSelectCamera(false);
+        useEngineStore.getState().selectLayer(null);
       }
     }
   };
@@ -174,6 +175,7 @@ export default function WorkspaceCanvas({
 
     onSelectAsset(asset.id);
     onSelectCamera(false);
+    useEngineStore.getState().selectLayer(null);
 
     if (asset.isLocked || isPanMode || spacePressed) return;
 
@@ -244,6 +246,7 @@ export default function WorkspaceCanvas({
 
     onSelectCamera(true);
     onSelectAsset(null);
+    useEngineStore.getState().selectLayer(null);
 
     if (camera.isLocked || isPanMode || spacePressed) return;
 
@@ -1131,6 +1134,10 @@ export default function WorkspaceCanvas({
             sceneHeight={sceneSettings.height || 2400}
             interactive={!isPanMode}
             onSelectLayer={(layerId) => {
+              if (layerId) {
+                onSelectAsset(null);
+                onSelectCamera(false);
+              }
               if (onSelectTextLayer) onSelectTextLayer(layerId);
             }}
           />

@@ -103,6 +103,10 @@ export default function RightPanel({
   playbackProgress = 0,
   totalDuration = 10
 }) {
+  const { activeLayerId, layers: textEngineLayers, selectLayer } = useEngineStore();
+  const activeTextLayer = textEngineLayers.find((l) => l.id === activeLayerId) || null;
+  const isTextLayerSelected = Boolean(activeTextLayer);
+
   const [rightPanelTab, setRightPanelTab] = useState('inspector'); // 'inspector' | 'character_assembly'
 
   if (!isOpen) {
@@ -253,12 +257,16 @@ export default function RightPanel({
   return (
     <div className="relative z-30 flex shrink-0 p-2 h-full">
       {/* Slideable Glassmorphic Panel Body */}
-      <aside className="w-72 bg-[#2A2529]/95 backdrop-blur-md border border-white/10 rounded-2xl flex flex-col h-full select-none shadow-2xl overflow-hidden transition-all duration-200">
+      <aside className="w-80 bg-[#2A2529]/95 backdrop-blur-md border border-white/10 rounded-2xl flex flex-col h-full select-none shadow-2xl overflow-hidden transition-all duration-200">
         {/* Panel Header & Mode Switcher */}
         <div className="p-3 border-b border-white/10 flex flex-col gap-2 bg-[#211C1F]">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-bold text-[#F3F0E7] uppercase tracking-wider flex items-center gap-1.5">
-              {rightPanelTab === 'character_assembly' ? (
+              {isTextLayerSelected ? (
+                <>
+                  <Type className="w-3.5 h-3.5 text-blue-400" /> Text Inspector
+                </>
+              ) : rightPanelTab === 'character_assembly' ? (
                 <>
                   <User className="w-3.5 h-3.5 text-purple-400" /> Modular Character
                 </>
@@ -270,9 +278,17 @@ export default function RightPanel({
             </h2>
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-mono text-zinc-400 bg-[#2A2529] px-2 py-0.5 rounded-md border border-white/10">
-                {selectedAsset ? (selectedAsset.type === 'modular_body_part' ? 'MODULAR RIG' : selectedAsset.type === 'text' ? 'TEXT' : selectedAsset.type === 'svg' ? 'SVG' : 'ASSET') : selectedShot ? 'SHOT' : 'CAMERA'}
+                {isTextLayerSelected ? 'TEXT OBJECT' : selectedAsset ? (selectedAsset.type === 'modular_body_part' ? 'MODULAR RIG' : selectedAsset.type === 'text' ? 'TEXT' : selectedAsset.type === 'svg' ? 'SVG' : 'ASSET') : selectedShot ? 'SHOT' : 'CAMERA'}
               </span>
-              {onToggleOpen && (
+              {isTextLayerSelected ? (
+                <button
+                  onClick={() => selectLayer(null)}
+                  className="p-1 hover:bg-white/10 text-zinc-400 hover:text-white rounded-lg transition-colors cursor-pointer text-xs font-bold"
+                  title="Deselect Text"
+                >
+                  ✕
+                </button>
+              ) : onToggleOpen ? (
                 <button
                   onClick={onToggleOpen}
                   className="p-1 hover:bg-white/10 text-zinc-400 hover:text-[#F3F0E7] rounded-lg transition-colors cursor-pointer"
@@ -280,46 +296,37 @@ export default function RightPanel({
                 >
                   <PanelRightClose className="w-4 h-4" />
                 </button>
-              )}
+              ) : null}
             </div>
           </div>
 
-          {/* THREE MAIN MODE TABS: INSPECTOR | TEXT ENGINE | CHARACTER RIG */}
-          <div className="flex bg-[#1E191C] p-1 rounded-xl border border-white/10 gap-1">
-            <button
-              onClick={() => setRightPanelTab('inspector')}
-              className={`flex-1 py-1 px-1.5 text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                rightPanelTab === 'inspector'
-                  ? 'bg-[#F3F0E7] text-[#2A2529] font-bold shadow-xs'
-                  : 'text-zinc-400 hover:text-[#F3F0E7]'
-              }`}
-            >
-              <Sliders className="w-3 h-3" />
-              <span>Inspector</span>
-            </button>
-            <button
-              onClick={() => setRightPanelTab('text_engine')}
-              className={`flex-1 py-1 px-1.5 text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                rightPanelTab === 'text_engine'
-                  ? 'bg-blue-600 text-white font-bold shadow-xs'
-                  : 'text-zinc-400 hover:text-[#F3F0E7]'
-              }`}
-            >
-              <Type className="w-3 h-3" />
-              <span>Text Engine</span>
-            </button>
-            <button
-              onClick={() => setRightPanelTab('character_assembly')}
-              className={`flex-1 py-1 px-1.5 text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1 transition-all cursor-pointer ${
-                rightPanelTab === 'character_assembly'
-                  ? 'bg-purple-600 text-white font-bold shadow-xs'
-                  : 'text-purple-300/70 hover:text-purple-200'
-              }`}
-            >
-              <User className="w-3 h-3" />
-              <span>Rig</span>
-            </button>
-          </div>
+          {/* TWO MAIN MODE TABS (When not in text inspection mode) */}
+          {!isTextLayerSelected && (
+            <div className="flex bg-[#1E191C] p-1 rounded-xl border border-white/10 gap-1">
+              <button
+                onClick={() => setRightPanelTab('inspector')}
+                className={`flex-1 py-1 px-2 text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  rightPanelTab === 'inspector'
+                    ? 'bg-[#F3F0E7] text-[#2A2529] font-bold shadow-xs'
+                    : 'text-zinc-400 hover:text-[#F3F0E7]'
+                }`}
+              >
+                <Sliders className="w-3 h-3" />
+                <span>Inspector</span>
+              </button>
+              <button
+                onClick={() => setRightPanelTab('character_assembly')}
+                className={`flex-1 py-1 px-2 text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  rightPanelTab === 'character_assembly'
+                    ? 'bg-purple-600 text-white font-bold shadow-xs'
+                    : 'text-purple-300/70 hover:text-purple-200'
+                }`}
+              >
+                <User className="w-3 h-3" />
+                <span>Character Rig</span>
+              </button>
+            </div>
+          )}
 
           {/* EXPORT BUTTON */}
           <button
@@ -331,8 +338,8 @@ export default function RightPanel({
           </button>
         </div>
 
-        {rightPanelTab === 'text_engine' ? (
-          <div className="flex-1 overflow-hidden h-full flex flex-col bg-[#0c0c0c]">
+        {isTextLayerSelected ? (
+          <div className="flex-1 overflow-hidden h-full flex flex-col bg-[#0c0c0c] w-full">
             <KantoTextInspector />
           </div>
         ) : rightPanelTab === 'character_assembly' ? (

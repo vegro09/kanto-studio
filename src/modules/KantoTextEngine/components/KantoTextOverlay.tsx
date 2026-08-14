@@ -58,6 +58,18 @@ export const KantoTextOverlay: React.FC<KantoTextOverlayProps> = ({
           if (onSelectLayer) onSelectLayer(layerId);
         }
       );
+
+      // Force immediate initial frame render
+      renderer.render(
+        layers,
+        currentTimeSec,
+        totalDurationSec,
+        {
+          showSafeAreas: false,
+          showGrid: false,
+          transparent: true,
+        }
+      );
     } catch (err) {
       console.error('[KantoTextOverlay] Renderer init failed:', err);
     }
@@ -67,40 +79,41 @@ export const KantoTextOverlay: React.FC<KantoTextOverlayProps> = ({
     };
   }, [sceneWidth, sceneHeight]);
 
-  // Update active layer & dimensions
-  useEffect(() => {
-    if (rendererRef.current) {
+  // Synchronous draw function
+  const drawFrame = useCallback(() => {
+    if (rendererRef.current && canvasRef.current) {
       rendererRef.current.setDimensions(dimensions);
       rendererRef.current.setActiveLayerId(activeLayerId);
+      rendererRef.current.render(
+        layers,
+        currentTimeSec,
+        totalDurationSec,
+        {
+          showSafeAreas: false,
+          showGrid: false,
+          transparent: true,
+        }
+      );
     }
-  }, [activeLayerId, sceneWidth, sceneHeight]);
+  }, [layers, activeLayerId, currentTimeSec, totalDurationSec, sceneWidth, sceneHeight]);
 
-  // Render loop synchronized with Kanto Motion playhead
+  // Immediate re-render when state changes
   useEffect(() => {
+    drawFrame();
+  }, [drawFrame]);
+
+  // RAF loop when isPlaying
+  useEffect(() => {
+    if (!isPlaying) return;
+
     let active = true;
-
-    const render = () => {
+    const loop = () => {
       if (!active) return;
-
-      if (rendererRef.current && canvasRef.current) {
-        rendererRef.current.render(
-          layers,
-          currentTimeSec,
-          totalDurationSec,
-          {
-            showSafeAreas: false,
-            showGrid: false,
-            transparent: true,
-          }
-        );
-      }
-
-      if (isPlaying) {
-        animationFrameRef.current = requestAnimationFrame(render);
-      }
+      drawFrame();
+      animationFrameRef.current = requestAnimationFrame(loop);
     };
 
-    render();
+    loop();
 
     return () => {
       active = false;
@@ -108,7 +121,7 @@ export const KantoTextOverlay: React.FC<KantoTextOverlayProps> = ({
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [currentTimeSec, totalDurationSec, isPlaying, layers]);
+  }, [isPlaying, drawFrame]);
 
   // World coordinates converter
   const getWorldCoordinates = useCallback(

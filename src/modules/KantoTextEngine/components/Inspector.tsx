@@ -31,9 +31,9 @@ export const Inspector: React.FC = () => {
   const { activeTab, setActiveTab, layers } = useEngineStore();
 
   return (
-    <aside className="w-80 md:w-96 bg-dark-900 border-l border-dark-750 flex flex-col h-full select-none z-20 shrink-0">
+    <div className="w-full flex flex-col h-full select-none overflow-hidden bg-transparent">
       {/* Black & White Tab Bar */}
-      <div className="h-12 bg-black border-b border-dark-750 flex items-center px-2 gap-1 overflow-x-auto scrollbar-none shrink-0">
+      <div className="h-9 bg-[#1E191C] border-b border-white/10 flex items-center px-1.5 gap-1 overflow-x-auto scrollbar-none shrink-0 w-full">
         {TABS.map((tab) => {
           const isSelected = activeTab === tab.id;
           const Icon = tab.icon;
@@ -41,16 +41,16 @@ export const Inspector: React.FC = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold transition-all whitespace-nowrap ${
+              className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-semibold transition-all whitespace-nowrap cursor-pointer ${
                 isSelected
-                  ? 'bg-white text-black font-bold shadow-sm'
-                  : 'text-neutral-400 hover:text-white hover:bg-dark-800'
+                  ? 'bg-white text-black font-bold shadow-xs'
+                  : 'text-zinc-400 hover:text-white hover:bg-white/10'
               }`}
             >
-              <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-black' : 'text-neutral-400'}`} />
+              <Icon className={`w-3 h-3 ${isSelected ? 'text-black' : 'text-zinc-400'}`} />
               <span>{tab.label}</span>
               {tab.id === 'layers' && (
-                <span className={`text-[10px] px-1 rounded font-mono ml-0.5 ${isSelected ? 'bg-black text-white' : 'bg-dark-800 text-neutral-400'}`}>
+                <span className={`text-[9px] px-1 rounded font-mono ml-0.5 ${isSelected ? 'bg-black text-white' : 'bg-black/40 text-zinc-400'}`}>
                   {layers.length}
                 </span>
               )}
@@ -60,13 +60,13 @@ export const Inspector: React.FC = () => {
       </div>
 
       {/* Tab Content Panel */}
-      <div className="flex-1 overflow-hidden relative bg-dark-900">
+      <div className="flex-1 overflow-y-auto relative bg-transparent custom-scrollbar w-full">
         {activeTab === 'fonts' && <FontsPanel />}
         {activeTab === 'styles' && <StylesPanel />}
         {activeTab === 'effects' && <EffectsPanel />}
         {activeTab === 'animations' && <AnimationsPanel />}
         {activeTab === 'layers' && <LayersPanel />}
       </div>
-    </aside>
+    </div>
   );
 };

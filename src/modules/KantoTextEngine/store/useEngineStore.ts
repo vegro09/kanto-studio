@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { KantoTextNode, CanvasDimensions, PresetEffect } from '../types/engine';
+import { FontManager } from '../engine/FontManager';
 
 export const CANVAS_PRESETS: CanvasDimensions[] = [
   { name: 'TikTok / Reels (9:16)', width: 1080, height: 1920, aspectRatio: '9:16' },
@@ -62,6 +63,9 @@ export interface EngineState {
   // Export / Import
   getExportData: () => KantoTextNode[];
   importData: (nodes: KantoTextNode[]) => void;
+
+  // Custom Font
+  uploadCustomFont: (file: File) => Promise<any>;
 }
 
 const DEFAULT_LAYER_1: KantoTextNode = {
@@ -197,20 +201,20 @@ const DEFAULT_LAYER_2: KantoTextNode = {
 };
 
 export const useEngineStore = create<EngineState>((set, get) => ({
-  layers: [DEFAULT_LAYER_1, DEFAULT_LAYER_2],
-  activeLayerId: 'layer-1',
+  layers: [],
+  activeLayerId: null,
   canvasDimensions: CANVAS_PRESETS[0], // 9:16 TikTok / Reels
-  zoom: 0.42,
-  showSafeAreas: true,
+  zoom: 0.85,
+  showSafeAreas: false,
   showGrid: false,
 
-  isPlaying: true,
+  isPlaying: false,
   currentTime: 0,
-  totalDuration: 3.5,
+  totalDuration: 10,
   playbackSpeed: 1,
-  loopPlayback: true,
+  loopPlayback: false,
 
-  activeTab: 'styles',
+  activeTab: 'fonts',
   isExportModalOpen: false,
 
   setActiveTab: (tab) => set({ activeTab: tab }),
@@ -226,20 +230,24 @@ export const useEngineStore = create<EngineState>((set, get) => ({
   setPlaybackSpeed: (playbackSpeed) => set({ playbackSpeed }),
   setLoopPlayback: (loopPlayback) => set({ loopPlayback }),
 
-  addLayer: (content = 'New Text Layer', isArabic = false) => {
-    const newId = `layer-${Date.now()}`;
+  addLayer: (content = 'KANTO MOTION', isArabic = false, customX?: number, customY?: number) => {
+    const newId = `text-node-${Date.now()}`;
     const dims = get().canvasDimensions;
+    const dur = Math.max(get().totalDuration || 10, 5);
+    const posX = typeof customX === 'number' && Number.isFinite(customX) ? customX : (dims.width / 2);
+    const posY = typeof customY === 'number' && Number.isFinite(customY) ? customY : (dims.height / 2 + (get().layers.length * 50));
+
     const newLayer: KantoTextNode = {
       id: newId,
-      content: content,
+      content: content || 'KANTO MOTION',
       transform: {
-        x: dims.width / 2,
-        y: dims.height / 2 + (get().layers.length * 40),
+        x: posX,
+        y: posY,
         scale: 1,
         rotation: 0,
       },
       font: {
-        family: isArabic ? 'Cairo' : 'Inter',
+        family: isArabic ? 'Cairo' : 'Space Grotesk',
         size: 72,
         isCustom: false,
       },
@@ -267,31 +275,31 @@ export const useEngineStore = create<EngineState>((set, get) => ({
           char: 0,
           line: 1.2,
         },
-        bold: false,
+        bold: true,
         italic: false,
         underline: false,
         align: 'center',
       },
       animation: {
         in: {
-          type: 'typewriter',
-          duration: 1.0,
+          type: 'none',
+          duration: 0.8,
         },
         out: {
-          type: 'dissolve',
+          type: 'none',
           duration: 0.6,
         },
         loop: {
-          type: 'pulse',
+          type: 'none',
           speed: 1.0,
         },
       },
       meta: {
-        name: `Layer ${get().layers.length + 1}`,
+        name: `Text ${get().layers.length + 1}`,
         locked: false,
         hidden: false,
         startTime: 0,
-        endTime: get().totalDuration,
+        endTime: dur,
       },
     };
 
@@ -493,5 +501,16 @@ export const useEngineStore = create<EngineState>((set, get) => ({
       activeLayerId: nodes[0].id,
       currentTime: 0,
     });
+  },
+
+  uploadCustomFont: async (file: File) => {
+    const item = await FontManager.loadCustomFontFile(file);
+    const activeId = get().activeLayerId;
+    if (activeId) {
+      get().updateActiveLayer({
+        font: { family: item.family, isCustom: true, size: 72 },
+      });
+    }
+    return item;
   },
 }));
