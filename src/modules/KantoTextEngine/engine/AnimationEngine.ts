@@ -26,31 +26,35 @@ function easeOutBack(x: number): number {
 
 export class AnimationEngine {
   public static evaluateLayer(layer: KantoTextNode, currentTime: number, totalDuration: number): EvaluatedLayerTransform {
-    const startTime = layer.meta?.startTime ?? 0;
-    const endTime = layer.meta?.endTime ?? totalDuration;
+    const startTime = typeof layer.meta?.startTime === 'number' ? layer.meta.startTime : 0;
+    const clipDuration = typeof layer.meta?.duration === 'number' && layer.meta.duration > 0
+      ? layer.meta.duration
+      : (typeof layer.meta?.endTime === 'number' ? Math.max(0.1, layer.meta.endTime - startTime) : 5.0);
+    const endTime = startTime + clipDuration;
 
     // Base properties
-    let content = layer.content;
+    let content = layer.content || '';
     let x = layer.transform.x;
     let y = layer.transform.y;
     let scale = layer.transform.scale;
     let rotation = layer.transform.rotation;
-    let opacity = layer.style.opacity;
+    let opacity = layer.style.opacity ?? 1.0;
     let blur = 0;
-    let glowBlur = layer.style.glow.enabled ? layer.style.glow.blur : 0;
-    let glowColor = layer.style.glow.color;
+    let glowBlur = layer.style.glow?.enabled ? (layer.style.glow.blur || 10) : 0;
+    let glowColor = layer.style.glow?.color || '#ffffff';
 
-    // If currentTime is outside active layer time window
+    // Strict boundary visibility check:
+    // If currentTime is strictly outside the clip bounds [startTime, endTime], do NOT render
     if (currentTime < startTime || currentTime > endTime) {
-      return { content, x, y, scale, rotation, opacity: 0, blur: 0, glowBlur, glowColor };
+      return { content, x, y, scale, rotation, opacity: 0, blur: 0, glowBlur: 0, glowColor };
     }
 
     const relTime = currentTime - startTime;
     const timeRemaining = endTime - currentTime;
 
     // 1. IN-ANIMATION
-    const inAnim = layer.animation.in;
-    if (inAnim && inAnim.type !== 'none' && inAnim.duration > 0) {
+    const inAnim = layer.animation?.in;
+    if (inAnim && inAnim.type && inAnim.type !== 'none' && inAnim.duration > 0) {
       const inProgress = Math.min(1, Math.max(0, relTime / inAnim.duration));
       const easedIn = easeOutCubic(inProgress);
 
@@ -72,6 +76,12 @@ export class AnimationEngine {
           y += slideOffset;
           break;
         }
+        case 'slide-down': {
+          opacity *= easedIn;
+          const slideOffset = (1 - easedIn) * 120;
+          y -= slideOffset;
+          break;
+        }
         case 'scale-in': {
           opacity *= easedIn;
           scale *= 0.1 + 0.9 * easedIn;
@@ -87,8 +97,8 @@ export class AnimationEngine {
     }
 
     // 2. OUT-ANIMATION
-    const outAnim = layer.animation.out;
-    if (outAnim && outAnim.type !== 'none' && outAnim.duration > 0 && timeRemaining < outAnim.duration) {
+    const outAnim = layer.animation?.out;
+    if (outAnim && outAnim.type && outAnim.type !== 'none' && outAnim.duration > 0 && timeRemaining < outAnim.duration) {
       const outProgress = Math.min(1, Math.max(0, 1 - timeRemaining / outAnim.duration)); // 0 -> 1 during out
       const easedOut = easeOutCubic(outProgress);
 
@@ -115,11 +125,11 @@ export class AnimationEngine {
       }
     }
 
-    // 3. LOOP-ANIMATION (only active between in-anim finish and out-anim start)
-    const loopAnim = layer.animation.loop;
-    if (loopAnim && loopAnim.type !== 'none') {
+    // 3. LOOP-ANIMATION (driven by relativeTime from clip start)
+    const loopAnim = layer.animation?.loop;
+    if (loopAnim && loopAnim.type && loopAnim.type !== 'none') {
       const speed = loopAnim.speed || 1.0;
-      const t = currentTime * speed;
+      const t = relTime * speed;
 
       switch (loopAnim.type) {
         case 'pulse': {

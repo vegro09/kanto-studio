@@ -362,11 +362,76 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
       const project = getProject(projectId);
       if (project && Array.isArray(project.textLayers) && project.textLayers.length > 0) {
         useEngineStore.getState().importData(project.textLayers);
+        // Ensure all text layers exist in assets array so Timeline tracks render them
+        setAssets((prevAssets) => {
+          const existingIds = new Set(prevAssets.map((a) => a.id));
+          const missingClips = [];
+          for (const layer of project.textLayers) {
+            if (!existingIds.has(layer.id)) {
+              missingClips.push({
+                id: layer.id,
+                name: layer.content || 'Text',
+                type: 'text',
+                category: 'Text',
+                textContent: layer.content || 'Text',
+                x: layer.transform?.x || 800,
+                y: layer.transform?.y || 600,
+                width: 320,
+                height: 120,
+                scale: layer.transform?.scale || 1.0,
+                rotation: layer.transform?.rotation || 0,
+                opacity: layer.style?.opacity ?? 1.0,
+                zIndex: Date.now(),
+                isLocked: layer.meta?.locked || false,
+                startTimeSec: layer.meta?.startTime || 0,
+                duration: typeof layer.meta?.duration === 'number' ? layer.meta.duration : ((layer.meta?.endTime || 5) - (layer.meta?.startTime || 0)),
+              });
+            }
+          }
+          return missingClips.length > 0 ? [...prevAssets, ...missingClips] : prevAssets;
+        });
       }
     } catch (e) {
       console.error('[StudioEngine] Failed to restore text layers:', e);
     }
   }, [projectId]);
+
+  // Bidirectional Text Layer Content & Timing Sync to Timeline
+  useEffect(() => {
+    const unsub = useEngineStore.subscribe((state, prevState) => {
+      if (state.layers !== prevState.layers) {
+        setAssets((prevAssets) => {
+          let modified = false;
+          const next = prevAssets.map((asset) => {
+            if (asset.type === 'text') {
+              const layer = state.layers.find((l) => l.id === asset.id);
+              if (layer) {
+                const textName = layer.content || 'Text';
+                const lStart = layer.meta?.startTime ?? asset.startTimeSec;
+                const lDur = typeof layer.meta?.duration === 'number' && layer.meta.duration > 0
+                  ? layer.meta.duration
+                  : ((layer.meta?.endTime ?? (lStart + asset.duration)) - lStart);
+                if (asset.name !== textName || asset.textContent !== textName || asset.startTimeSec !== lStart || asset.duration !== lDur) {
+                  modified = true;
+                  return {
+                    ...asset,
+                    name: textName,
+                    textContent: textName,
+                    startTimeSec: lStart,
+                    duration: lDur,
+                  };
+                }
+              }
+            }
+            return asset;
+          });
+          return modified ? next : prevAssets;
+        });
+      }
+    });
+
+    return () => unsub();
+  }, []);
 
   // Auto-save text layers when modified
   useEffect(() => {
@@ -1022,22 +1087,111 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
     const camCenterX = (camera?.x || 0) + camW / 2;
     const camCenterY = (camera?.y || 0) + camH / 2;
 
-    useEngineStore.getState().addLayer(customText || 'KANTO MOTION', false, camCenterX, camCenterY);
+    const currentTimestampSec = Math.round(((playbackProgress || 0) * (totalDuration || 10)) * 100) / 100;
+    const textContent = customText || 'KANTO MOTION';
+
+    // 1. Instantiate new default Text Object in KantoTextEngine
+    const layerId = useEngineStore.getState().addLayer(
+      textContent,
+      false,
+      camCenterX,
+      camCenterY,
+      currentTimestampSec,
+      5.0
+    );
+
+    // 2. Simultaneously create a matching TextClip in the global Timeline store / assets array
+    const newTextClip = {
+      id: layerId,
+      name: textContent,
+      type: 'text',
+      category: 'Text',
+      textContent: textContent,
+      x: Math.round(camCenterX - 160),
+      y: Math.round(camCenterY - 60),
+      width: 320,
+      height: 120,
+      scale: 1.0,
+      rotation: 0,
+      opacity: 1.0,
+      zIndex: assets.length > 0 ? Math.max(...assets.map((a) => a.zIndex || 0)) + 1 : 1,
+      isLocked: false,
+      startTimeSec: currentTimestampSec,
+      duration: 5.0
+    };
+
+    recordHistory();
+    setAssets((prev) => [...prev, newTextClip]);
+
+    // Explicitly append to active shot if shots exist
+    if (shots.length > 0 && activeShotIndex !== null && activeShotIndex >= 0) {
+      setShots((prevShots) => {
+        const updated = [...prevShots];
+        const activeShot = updated[activeShotIndex];
+        if (activeShot) {
+          updated[activeShotIndex] = {
+            ...activeShot,
+            assets: [...(activeShot.assets || []), newTextClip]
+          };
+        }
+        return updated;
+      });
+    }
+
+    setSelectedAssetId(layerId);
+    setIsCameraSelected(false);
     setIsRightPanelOpen(true);
-    showToast('Added Text Object to Canvas', 'success');
+    showToast('Added Text Clip to Timeline & Canvas', 'success');
   };
 
   const handleUpdateAsset = (id, updates) => {
     setAssets((prev) =>
       prev.map((asset) => (asset.id === id ? { ...asset, ...updates } : asset))
     );
+
+    // If it's a text layer, synchronize timing and content with KantoTextEngine
+    const targetLayer = useEngineStore.getState().layers.find((l) => l.id === id);
+    if (targetLayer) {
+      const newStart = typeof updates.startTimeSec === 'number' ? updates.startTimeSec : (targetLayer.meta?.startTime || 0);
+      const newDur = typeof updates.duration === 'number' ? updates.duration : ((targetLayer.meta?.endTime || (newStart + 5.0)) - newStart);
+      const patch = {
+        meta: {
+          ...targetLayer.meta,
+          startTime: newStart,
+          endTime: newStart + newDur,
+          duration: newDur,
+        }
+      };
+      if (updates.textContent || updates.name) {
+        patch.content = updates.textContent || updates.name;
+      }
+      useEngineStore.getState().updateLayerById(id, patch);
+    }
   };
 
   const handleDeleteAsset = (id) => {
     const target = assets.find((a) => a.id === id);
     setAssets((prev) => prev.filter((a) => a.id !== id));
     if (selectedAssetId === id) setSelectedAssetId(null);
+    useEngineStore.getState().removeLayer(id);
     if (target) showToast(`Deleted "${target.name}"`, 'info');
+  };
+
+  const handleSelectAsset = (id) => {
+    setSelectedAssetId(id);
+    if (id) {
+      setIsCameraSelected(false);
+      setSelectedShotId(null);
+      const isText = assets.some((a) => a.id === id && a.type === 'text') || useEngineStore.getState().layers.some((l) => l.id === id);
+      if (isText) {
+        useEngineStore.getState().selectLayer(id);
+        setIsRightPanelOpen(true);
+      } else {
+        useEngineStore.getState().selectLayer(null);
+      }
+    } else {
+      useEngineStore.getState().selectLayer(null);
+    }
   };
 
   const handleDuplicateAsset = (id) => {
@@ -1436,13 +1590,7 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
             assets={assets}
             onUpdateAsset={handleUpdateAsset}
             selectedAssetId={selectedAssetId}
-            onSelectAsset={(id) => {
-              setSelectedAssetId(id);
-              if (id) {
-                setIsCameraSelected(false);
-                setSelectedShotId(null);
-              }
-            }}
+            onSelectAsset={handleSelectAsset}
             camera={camera}
             onUpdateCamera={handleUpdateCamera}
             onSelectCamera={(val) => {
@@ -1614,13 +1762,7 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
           activeShotId={selectedShotId}
           selectedAssetId={selectedAssetId}
           onSelectShot={handleSelectShot}
-          onSelectAsset={(id) => {
-            setSelectedAssetId(id);
-            if (id) {
-              setIsCameraSelected(false);
-              setSelectedShotId(null);
-            }
-          }}
+          onSelectAsset={handleSelectAsset}
           onMoveShot={handleMoveShot}
           onDeleteShot={handleDeleteShot}
           onUpdateShot={handleUpdateShot}

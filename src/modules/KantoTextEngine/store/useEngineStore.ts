@@ -49,7 +49,7 @@ export interface EngineState {
   setLoopPlayback: (loop: boolean) => void;
 
   // Layer Management
-  addLayer: (content?: string, isArabic?: boolean) => void;
+  addLayer: (content?: string, isArabic?: boolean, customX?: number, customY?: number, startTimeSec?: number, durationSec?: number, customId?: string) => string;
   removeLayer: (id: string) => void;
   duplicateLayer: (id: string) => void;
   reorderLayers: (startIndex: number, endIndex: number) => void;
@@ -230,10 +230,19 @@ export const useEngineStore = create<EngineState>((set, get) => ({
   setPlaybackSpeed: (playbackSpeed) => set({ playbackSpeed }),
   setLoopPlayback: (loopPlayback) => set({ loopPlayback }),
 
-  addLayer: (content = 'KANTO MOTION', isArabic = false, customX?: number, customY?: number) => {
-    const newId = `text-node-${Date.now()}`;
+  addLayer: (
+    content = 'KANTO MOTION',
+    isArabic = false,
+    customX?: number,
+    customY?: number,
+    startTimeSec = 0,
+    durationSec = 5.0,
+    customId?: string
+  ) => {
+    const newId = customId || `text-node-${Date.now()}`;
     const dims = get().canvasDimensions;
-    const dur = Math.max(get().totalDuration || 10, 5);
+    const dur = typeof durationSec === 'number' && durationSec > 0 ? durationSec : 5.0;
+    const start = typeof startTimeSec === 'number' && Number.isFinite(startTimeSec) ? Math.max(0, startTimeSec) : 0;
     const posX = typeof customX === 'number' && Number.isFinite(customX) ? customX : (dims.width / 2);
     const posY = typeof customY === 'number' && Number.isFinite(customY) ? customY : (dims.height / 2 + (get().layers.length * 50));
 
@@ -295,11 +304,12 @@ export const useEngineStore = create<EngineState>((set, get) => ({
         },
       },
       meta: {
-        name: `Text ${get().layers.length + 1}`,
+        name: content || `Text ${get().layers.length + 1}`,
         locked: false,
         hidden: false,
-        startTime: 0,
-        endTime: dur,
+        startTime: start,
+        endTime: start + dur,
+        duration: dur,
       },
     };
 
@@ -307,6 +317,8 @@ export const useEngineStore = create<EngineState>((set, get) => ({
       layers: [...state.layers, newLayer],
       activeLayerId: newId,
     }));
+
+    return newId;
   },
 
   removeLayer: (id) => {
