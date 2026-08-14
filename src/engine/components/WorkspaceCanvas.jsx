@@ -1135,7 +1135,7 @@ export default function WorkspaceCanvas({
             interactive={!isPanMode}
             onSelectLayer={(layerId) => {
               if (layerId) {
-                onSelectAsset(null);
+                onSelectAsset(layerId);
                 onSelectCamera(false);
               }
               if (onSelectTextLayer) onSelectTextLayer(layerId);

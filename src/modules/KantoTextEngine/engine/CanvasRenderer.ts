@@ -414,17 +414,17 @@ export class CanvasRenderer {
       const activeLayer = layers.find((l) => l.id === this.activeLayerId);
       
       if (activeBox && activeLayer && !activeLayer.meta?.locked) {
-        // 1. Check Rotation handle hit
+        // 1. Check Rotation handle hit (Generous 28px hit radius)
         const rotPoint = this.getRotHandleWorldPos(activeBox);
         const distToRot = Math.hypot(worldX - rotPoint.x, worldY - rotPoint.y);
-        if (distToRot <= 20) {
+        if (distToRot <= 28) {
           this.interactionMode = 'rotating';
           this.startPointerPos = { x: worldX, y: worldY };
           this.initialLayerTransform = { ...activeLayer.transform };
           return true;
         }
 
-        // 2. Check Corner Resize Handles
+        // 2. Check Corner Resize Handles (Generous 28px hit radius)
         const cornerHit = this.checkCornerHandleHit(worldX, worldY, activeBox);
         if (cornerHit) {
           this.interactionMode = cornerHit;
@@ -435,7 +435,7 @@ export class CanvasRenderer {
       }
     }
 
-    // 3. Check Layer Selection
+    // 3. Check Layer Selection & Translation Hit
     for (let i = layers.length - 1; i >= 0; i--) {
       const layer = layers[i];
       if (layer.meta?.hidden || layer.meta?.locked) continue;
@@ -469,7 +469,7 @@ export class CanvasRenderer {
       const activeLayer = layers.find((l) => l.id === this.activeLayerId);
       if (activeBox && activeLayer && !activeLayer.meta?.locked) {
         const rotPoint = this.getRotHandleWorldPos(activeBox);
-        if (Math.hypot(worldX - rotPoint.x, worldY - rotPoint.y) <= 20) {
+        if (Math.hypot(worldX - rotPoint.x, worldY - rotPoint.y) <= 28) {
           return 'crosshair';
         }
         const cornerHit = this.checkCornerHandleHit(worldX, worldY, activeBox);
@@ -505,6 +505,9 @@ export class CanvasRenderer {
       const newX = Math.round(this.initialLayerTransform.x + dx);
       const newY = Math.round(this.initialLayerTransform.y + dy);
 
+      layer.transform.x = newX;
+      layer.transform.y = newY;
+
       this.onLayerTransformChange?.(layer.id, {
         x: newX,
         y: newY,
@@ -524,11 +527,14 @@ export class CanvasRenderer {
         }
       }
 
+      const rot = Math.round(angleDeg);
+      layer.transform.rotation = rot;
+
       this.onLayerTransformChange?.(layer.id, {
         x: layer.transform.x,
         y: layer.transform.y,
         scale: layer.transform.scale,
-        rotation: Math.round(angleDeg),
+        rotation: rot,
       });
     } else if (this.interactionMode.startsWith('resizing')) {
       const initialDist = Math.hypot(
@@ -539,11 +545,14 @@ export class CanvasRenderer {
 
       if (initialDist > 5) {
         const scaleFactor = currentDist / initialDist;
-        const newScale = Math.max(0.1, Math.min(5, this.initialLayerTransform.scale * scaleFactor));
+        const newScale = Math.max(0.1, Math.min(10, this.initialLayerTransform.scale * scaleFactor));
+        const scaledVal = Number(newScale.toFixed(3));
+        layer.transform.scale = scaledVal;
+
         this.onLayerTransformChange?.(layer.id, {
           x: layer.transform.x,
           y: layer.transform.y,
-          scale: Number(newScale.toFixed(3)),
+          scale: scaledVal,
           rotation: layer.transform.rotation,
         });
       }
@@ -567,7 +576,7 @@ export class CanvasRenderer {
     const localX = dx * cos - dy * sin;
     const localY = dx * sin + dy * cos;
 
-    const pad = 12;
+    const pad = 16;
     return (
       localX >= -width / 2 - pad &&
       localX <= width / 2 + pad &&
@@ -600,7 +609,7 @@ export class CanvasRenderer {
 
     const halfW = width / 2 + 12;
     const halfH = height / 2 + 12;
-    const r = 18;
+    const r = 28; // Generous hit radius for mouse & touch
 
     if (Math.hypot(localX - -halfW, localY - -halfH) <= r) return 'resizing-tl';
     if (Math.hypot(localX - halfW, localY - -halfH) <= r) return 'resizing-tr';
