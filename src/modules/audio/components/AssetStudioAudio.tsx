@@ -1,23 +1,18 @@
 import React, { useState, useRef } from 'react';
 import { SFX_CATALOG, SFXItem, registerCustomAudioBuffer } from '../core/SoundLibrary';
 import { ProceduralAudioEngine } from '../core/ProceduralAudioEngine';
-
-export interface CustomAudioItem {
-  id: string;
-  name: string;
-  category: 'Uploaded';
-  duration: number;
-  buffer: AudioBuffer;
-  isCustom: true;
-}
+import { AudioBufferRegistry } from '../core/AudioBufferRegistry';
+import { useAudioStore } from '../store/audioStore';
 
 export interface AssetStudioAudioProps {
   onAddAudioClip?: (clip: {
     id?: string;
+    soundId?: string;
     name: string;
     type: 'audio';
     category: string;
     sfxId?: string;
+    trackId?: string;
     duration: number;
     buffer?: AudioBuffer | null;
     src?: string;
@@ -28,160 +23,139 @@ export interface AssetStudioAudioProps {
 export const AssetStudioAudio: React.FC<AssetStudioAudioProps> = ({ onAddAudioClip }) => {
   const [activeCategory, setActiveCategory] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [customSounds, setCustomSounds] = useState<CustomAudioItem[]>([]);
-  const [playingId, setPlayingId] = useState<string | null>(null);
+  const [previewingId, setPreviewingId] = useState<string | null>(null);
 
-  const currentSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const currentPreviewSource = useRef<AudioBufferSourceNode | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const { uploadedSounds, addUploadedSound } = useAudioStore();
+  const bufferRegistry = AudioBufferRegistry.getInstance();
+  const audioEngine = ProceduralAudioEngine.getInstance();
 
   const categories = ['ALL', 'Uploaded', 'Transitions', 'UI', 'Cinematic', 'Comedy', 'Foley'];
 
-  // 1. Safe & Robust Audio File Ingestion & Decoding
+  // Handle local file uploads
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    const engine = ProceduralAudioEngine.getInstance();
-    if (engine.ctx.state === 'suspended') {
-      await engine.ctx.resume();
+    if (audioEngine.ctx.state === 'suspended') {
+      await audioEngine.ctx.resume();
     }
-
-    const newCustomItems: CustomAudioItem[] = [];
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       try {
         const arrayBuffer = await file.arrayBuffer();
-        // Decode audio data into native Web Audio buffer
-        const decodedBuffer = await engine.ctx.decodeAudioData(arrayBuffer);
-        const customId = `upload_${Date.now()}_${i}`;
+        const decodedBuffer = await audioEngine.ctx.decodeAudioData(arrayBuffer);
+        const soundId = `upload_${Date.now()}_${i}`;
 
-        registerCustomAudioBuffer(customId, decodedBuffer);
+        bufferRegistry.register(soundId, decodedBuffer);
+        registerCustomAudioBuffer(soundId, decodedBuffer);
 
-        const customItem: CustomAudioItem = {
-          id: customId,
+        addUploadedSound({
+          id: soundId,
           name: file.name.replace(/\.[^/.]+$/, ''),
           category: 'Uploaded',
           duration: Math.round(decodedBuffer.duration * 100) / 100,
-          buffer: decodedBuffer,
-          isCustom: true,
-        };
-
-        newCustomItems.push(customItem);
+          uploadedAt: Date.now(),
+        });
       } catch (err) {
-        console.error(`Failed to decode audio file: ${file.name}`, err);
+        console.error(`Failed to decode file: ${file.name}`, err);
       }
     }
 
-    if (newCustomItems.length > 0) {
-      setCustomSounds((prev) => [...newCustomItems, ...prev]);
-      setActiveCategory('Uploaded'); // Switch view automatically to uploaded tab
-    }
-
-    // Reset input value to allow re-uploading the same file if needed
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    setActiveCategory('Uploaded');
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // 2. Guaranteed Audio Preview Trigger
-  const handlePreviewAudio = async (item: SFXItem | CustomAudioItem) => {
-    const engine = ProceduralAudioEngine.getInstance();
-    if (engine.ctx.state === 'suspended') {
-      await engine.ctx.resume();
+  // Immediate Preview Trigger
+  const handleTogglePreview = async (id: string, isCustom: boolean, trigger?: () => void) => {
+    if (audioEngine.ctx.state === 'suspended') {
+      await audioEngine.ctx.resume();
     }
 
-    // Stop currently playing preview if one is active
-    if (currentSourceRef.current) {
+    if (currentPreviewSource.current) {
       try {
-        currentSourceRef.current.stop();
-        currentSourceRef.current.disconnect();
+        currentPreviewSource.current.stop();
+        currentPreviewSource.current.disconnect();
       } catch (e) {}
-      currentSourceRef.current = null;
+      currentPreviewSource.current = null;
     }
 
-    if (playingId === item.id) {
-      setPlayingId(null);
+    if (previewingId === id) {
+      setPreviewingId(null);
       return;
     }
 
-    // A. Custom Uploaded Sound
-    if ('isCustom' in item && item.isCustom) {
-      try {
-        const source = engine.ctx.createBufferSource();
-        source.buffer = item.buffer;
+    if (isCustom) {
+      const buffer = bufferRegistry.get(id);
+      if (!buffer) return;
 
-        const gain = engine.ctx.createGain();
-        gain.gain.setValueAtTime(1.0, engine.ctx.currentTime);
+      const source = audioEngine.ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioEngine.masterGain);
 
-        source.connect(gain);
-        gain.connect(engine.masterGain);
+      source.onended = () => {
+        setPreviewingId(null);
+        currentPreviewSource.current = null;
+      };
 
-        source.onended = () => {
-          setPlayingId((curr) => (curr === item.id ? null : curr));
-          currentSourceRef.current = null;
-        };
-
-        currentSourceRef.current = source;
-        setPlayingId(item.id);
-        source.start(0);
-      } catch (e) {
-        console.error('Preview error:', e);
-        setPlayingId(null);
-      }
-    } 
-    // B. Procedural Sound Effect
-    else if ('trigger' in item && item.trigger) {
-      setPlayingId(item.id);
-      item.trigger();
-      setTimeout(() => {
-        setPlayingId((curr) => (curr === item.id ? null : curr));
-      }, Math.max(400, ((item.duration || 0.5) * 1000)));
+      currentPreviewSource.current = source;
+      setPreviewingId(id);
+      source.start(0);
+    } else if (trigger) {
+      setPreviewingId(id);
+      trigger();
+      setTimeout(() => setPreviewingId(null), 700);
     }
   };
 
-  // 3. Add to Timeline Track (+ Button)
-  const handleAddToTimeline = (item: SFXItem | CustomAudioItem) => {
-    const isCustom = 'isCustom' in item && item.isCustom;
-
+  // Place on Timeline
+  const handleAddToTimeline = (id: string, name: string, duration: number, isCustom: boolean) => {
     if (onAddAudioClip) {
+      const isVoiceRec = isCustom && name.startsWith('Voice Rec');
       onAddAudioClip({
         id: `clip_${Date.now()}`,
-        name: item.name,
-        category: item.category,
-        sfxId: item.id,
-        duration: isCustom ? item.duration : (item.duration || 0.5),
-        buffer: isCustom ? item.buffer : null,
+        soundId: id,
+        sfxId: id,
+        name,
+        category: isCustom ? 'Uploaded' : 'SFX',
+        trackId: isVoiceRec ? 'voice_over' : 'sfx_1',
+        duration: isCustom ? duration : (duration || 0.5),
+        buffer: isCustom ? bufferRegistry.get(id) || null : null,
         type: 'audio',
       });
     }
   };
 
-  // 4. Unified Search & Filter Catalog
-  const allAudioItems: (SFXItem | CustomAudioItem)[] = [...customSounds, ...SFX_CATALOG];
+  const customItems = uploadedSounds.map((s) => ({
+    id: s.id,
+    name: s.name,
+    category: 'Uploaded' as const,
+    duration: s.duration,
+    isCustom: true,
+  }));
 
-  const filteredItems = allAudioItems.filter((item) => {
-    const matchesCategory = activeCategory === 'ALL' || item.category === activeCategory;
+  const allItems = [
+    ...customItems,
+    ...SFX_CATALOG.map((s) => ({ ...s, isCustom: false, duration: s.duration || 0.5 })),
+  ];
+
+  const filteredItems = allItems.filter((item) => {
+    const matchesCat = activeCategory === 'ALL' || item.category === activeCategory;
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+    return matchesCat && matchesSearch;
   });
 
   return (
     <div className="space-y-4 select-none">
-      {/* Upload Action Trigger */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="audio/*"
-        multiple
-        onChange={handleFileUpload}
-        className="hidden"
-        id="audio-asset-upload-input"
-      />
+      <input ref={fileInputRef} type="file" accept="audio/*" multiple onChange={handleFileUpload} className="hidden" id="audio-asset-upload-input" />
 
+      {/* Upload Button */}
       <button
         onClick={() => fileInputRef.current?.click()}
-        className="flex items-center justify-center gap-2 w-full py-2.5 px-3 bg-neutral-900 border border-neutral-700 hover:border-white rounded-lg cursor-pointer text-xs font-semibold text-white transition-all group shadow-sm"
+        className="flex items-center justify-center gap-2 w-full py-2.5 px-3 bg-neutral-900 border border-neutral-700 hover:border-white rounded-lg text-xs font-semibold text-white transition-all group cursor-pointer shadow-sm"
       >
         <svg className="w-4 h-4 text-neutral-400 group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
@@ -189,13 +163,13 @@ export const AssetStudioAudio: React.FC<AssetStudioAudioProps> = ({ onAddAudioCl
         <span>Upload Audio File</span>
       </button>
 
-      {/* Search Bar */}
+      {/* Search Input */}
       <div className="relative">
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search sounds & uploads..."
+          placeholder="Search sounds, uploads & recordings..."
           className="w-full bg-neutral-900 border border-neutral-800 rounded-md py-1.5 pl-8 pr-3 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-neutral-500"
         />
         <svg className="w-3.5 h-3.5 text-neutral-500 absolute left-2.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -206,12 +180,12 @@ export const AssetStudioAudio: React.FC<AssetStudioAudioProps> = ({ onAddAudioCl
       {/* Category Filter Chips */}
       <div className="flex gap-1.5 flex-wrap">
         {categories.map((cat) => {
-          const count = cat === 'Uploaded' ? customSounds.length : undefined;
+          const count = cat === 'Uploaded' ? uploadedSounds.length : undefined;
           return (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`px-3 py-1 rounded text-[11px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
+              className={`px-3 py-1 rounded text-[11px] font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 activeCategory === cat
                   ? 'bg-white text-black shadow-sm'
                   : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800 hover:border-neutral-700'
@@ -228,16 +202,15 @@ export const AssetStudioAudio: React.FC<AssetStudioAudioProps> = ({ onAddAudioCl
         })}
       </div>
 
-      {/* Sound Cards List Viewport */}
+      {/* Sound Cards List */}
       <div className="grid grid-cols-1 gap-2 max-h-[380px] custom-scrollbar pr-1">
         {filteredItems.length === 0 ? (
           <div className="p-6 text-center text-neutral-500 text-xs">
-            {activeCategory === 'Uploaded' ? 'No uploaded audio files yet. Click "Upload Audio File" above.' : 'No sounds found matching your criteria.'}
+            {activeCategory === 'Uploaded' ? 'No custom uploads or voice recordings yet.' : 'No matching sounds found.'}
           </div>
         ) : (
           filteredItems.map((item) => {
-            const isPlaying = playingId === item.id;
-            const isCustom = 'isCustom' in item && item.isCustom;
+            const isPlaying = previewingId === item.id;
 
             return (
               <div
@@ -248,23 +221,23 @@ export const AssetStudioAudio: React.FC<AssetStudioAudioProps> = ({ onAddAudioCl
                     'application/json',
                     JSON.stringify({
                       id: item.id,
+                      soundId: item.id,
                       sfxId: item.id,
                       name: item.name,
                       category: item.category,
-                      duration: isCustom ? item.duration : (item.duration || 0.5),
+                      duration: item.duration,
                       type: 'audio',
-                      isCustom,
+                      isCustom: item.isCustom,
                     })
                   );
                 }}
-                className="flex items-center justify-between p-2.5 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800/80 hover:border-neutral-700 rounded-lg cursor-grab active:cursor-grabbing transition-all group"
+                className="flex items-center justify-between p-2.5 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 hover:border-neutral-700 rounded-lg cursor-grab active:cursor-grabbing transition-all group"
               >
                 <div className="flex items-center gap-2.5 truncate">
-                  {/* Play / Stop Preview Button */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handlePreviewAudio(item);
+                      handleTogglePreview(item.id, item.isCustom, 'trigger' in item ? (item as any).trigger : undefined);
                     }}
                     className={`w-7 h-7 rounded-md flex items-center justify-center transition-all cursor-pointer ${
                       isPlaying
@@ -285,7 +258,7 @@ export const AssetStudioAudio: React.FC<AssetStudioAudioProps> = ({ onAddAudioCl
                   <div className="truncate">
                     <h5 className="text-xs font-semibold text-white truncate max-w-[130px]">{item.name}</h5>
                     <span className="text-[10px] text-neutral-400 font-mono">
-                      {isCustom ? `${item.duration.toFixed(2)}s` : 'Procedural'}
+                      {item.isCustom ? `${item.duration.toFixed(2)}s` : 'Procedural'}
                     </span>
                   </div>
                 </div>
@@ -295,11 +268,10 @@ export const AssetStudioAudio: React.FC<AssetStudioAudioProps> = ({ onAddAudioCl
                     {item.category}
                   </span>
 
-                  {/* Add to Timeline Button */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleAddToTimeline(item);
+                      handleAddToTimeline(item.id, item.name, item.duration, item.isCustom);
                     }}
                     className="p-1.5 rounded hover:bg-neutral-700 text-neutral-400 hover:text-white transition-colors cursor-pointer"
                     title="Add to Timeline"

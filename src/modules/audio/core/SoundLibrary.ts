@@ -1028,12 +1028,15 @@ export const SFX_CATALOG: SFXItem[] = [
   { id: 'pop_bubble', name: 'Pop Bubble', category: 'Foley', duration: 0.06, description: 'Clean acoustic soap bubble pop', trigger: SFX_PRESETS.pop_bubble }
 ];
 
+import { AudioBufferRegistry } from './AudioBufferRegistry';
+
 const cachedBuffers = new Map<string, AudioBuffer>();
 export const customAudioBufferCache = new Map<string, AudioBuffer>();
 
 export function registerCustomAudioBuffer(id: string, buffer: AudioBuffer) {
   customAudioBufferCache.set(id, buffer);
   cachedBuffers.set(id, buffer);
+  AudioBufferRegistry.getInstance().register(id, buffer);
 }
 
 /**
@@ -1041,6 +1044,9 @@ export function registerCustomAudioBuffer(id: string, buffer: AudioBuffer) {
  * Used for timeline clips, waveforms, and offline WAV rendering
  */
 export async function getProceduralSFXBuffer(sfxId: string): Promise<AudioBuffer | null> {
+  if (AudioBufferRegistry.getInstance().has(sfxId)) {
+    return AudioBufferRegistry.getInstance().get(sfxId)!;
+  }
   if (customAudioBufferCache.has(sfxId)) {
     return customAudioBufferCache.get(sfxId)!;
   }
@@ -1065,7 +1071,9 @@ export async function getProceduralSFXBuffer(sfxId: string): Promise<AudioBuffer
 
   const renderedBuffer = await offlineCtx.startRendering();
   cachedBuffers.set(sfxId, renderedBuffer);
+  AudioBufferRegistry.getInstance().register(sfxId, renderedBuffer);
   return renderedBuffer;
 }
+
 
 

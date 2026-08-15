@@ -24,9 +24,15 @@ import {
   PanelRightOpen
 } from 'lucide-react';
 import { DEFAULT_DEMO_PROJECT } from '../data/presetAssets';
-import { getProject, saveProject } from '../../lib/projectStore';
-import { useEngineStore } from '../../modules/KantoTextEngine';
-import { ProceduralAudioEngine, SFX_PRESETS, customAudioBufferCache } from '../../modules/audio';
+import { 
+  ProceduralAudioEngine, 
+  SFX_PRESETS, 
+  customAudioBufferCache,
+  VoiceRecorderEngine,
+  TimelinePlaybackEngine,
+  AudioBufferRegistry,
+  useAudioStore
+} from '../../modules/audio';
 
 export default function StudioEngine({ projectId, onSaveStatusChange }) {
   // Core Application State - Restored from localStorage on initial mount
@@ -190,6 +196,7 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
   const [toast, setToast] = useState(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
+  const [isLiveRecording, setIsLiveRecording] = useState(false);
 
   // TASK 4: AI BACKGROUND REMOVAL INTEGRATION (remove.bg REST API)
   const handleRemoveBackground = async (assetId) => {
@@ -248,6 +255,47 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
     if (focusCameraRef.current) {
       focusCameraRef.current();
       showToast('Centered workspace canvas on active camera viewfinder', 'info');
+    }
+  };
+
+  // LIVE MICROPHONE VOICE RECORDING ENGINE PIPELINE
+  const handleToggleLiveRecording = async () => {
+    const recorder = VoiceRecorderEngine.getInstance();
+    if (!isLiveRecording) {
+      try {
+        await recorder.startRecording();
+        setIsLiveRecording(true);
+      } catch (err) {
+        console.error('Microphone access denied or unavailable:', err);
+        showToast('Microphone access denied or unavailable', 'error');
+      }
+    } else {
+      setIsLiveRecording(false);
+      try {
+        const recording = await recorder.stopRecording();
+        const currentPlayheadSec = Math.round(((playbackProgress || 0) * (totalDuration || 10)) * 100) / 100;
+
+        handleAddAsset({
+          id: `clip_${Date.now()}`,
+          soundId: recording.id,
+          sfxId: recording.id,
+          name: recording.name,
+          category: 'Uploaded',
+          trackId: 'voice_over',
+          startTimeSec: currentPlayheadSec,
+          duration: recording.duration,
+          buffer: recording.buffer,
+          type: 'audio',
+          volume: 1.0,
+          pitchShift: 0,
+          speed: 1.0,
+          fadeIn: 0.05,
+          fadeOut: 0.05,
+        });
+      } catch (err) {
+        console.error('Failed to process voice recording:', err);
+        showToast('Failed to process voice recording', 'error');
+      }
     }
   };
 
@@ -1480,6 +1528,7 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
   useEffect(() => {
     if (!isPlaying) {
       playedClipsRef.current.clear();
+      TimelinePlaybackEngine.getInstance().stopAllActiveSources();
       return;
     }
 
@@ -1496,13 +1545,13 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
       if (isDue && !playedClipsRef.current.has(clip.id)) {
         playedClipsRef.current.add(clip.id);
 
-        const customBuffer = clip.buffer || (clip.sfxId ? customAudioBufferCache.get(clip.sfxId) : null);
+        const customBuffer = clip.buffer || (clip.soundId ? AudioBufferRegistry.getInstance().get(clip.soundId) : null) || (clip.sfxId ? (AudioBufferRegistry.getInstance().get(clip.sfxId) || customAudioBufferCache.get(clip.sfxId)) : null);
 
         if (customBuffer) {
           try {
             const source = engine.ctx.createBufferSource();
             source.buffer = customBuffer;
-            const trackNode = engine.trackNodes.get(clip.trackId || 'sfx1') || { gainNode: engine.masterGain };
+            const trackNode = engine.trackNodes.get(clip.trackId || 'sfx_1') || { gainNode: engine.masterGain };
             const clipGain = engine.ctx.createGain();
             const vol = clip.volume !== undefined ? clip.volume : 1.0;
             clipGain.gain.setValueAtTime(vol, engine.ctx.currentTime);
@@ -1514,7 +1563,7 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
             console.warn('[StudioEngine] Error playing custom buffer:', audioErr);
           }
         } else if (clip.sfxId && SFX_PRESETS[clip.sfxId]) {
-          const trackNode = engine.trackNodes.get(clip.trackId || 'sfx1') || { gainNode: engine.masterGain };
+          const trackNode = engine.trackNodes.get(clip.trackId || 'sfx_1') || { gainNode: engine.masterGain };
           const clipGain = engine.ctx.createGain();
           clipGain.gain.setValueAtTime(clip.volume !== undefined ? clip.volume : 1.0, engine.ctx.currentTime);
           clipGain.connect(trackNode.gainNode);
@@ -1540,15 +1589,16 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
 
     if (isPlaying) {
       setIsPlaying(false);
+      TimelinePlaybackEngine.getInstance().stopAllActiveSources();
       return;
     }
 
     setIsPlaying(true);
-    showToast('Playing sequence in real time (1:1 sec clock)', 'info');
   };
 
   const handleResetCamera = () => {
     setIsPlaying(false);
+    TimelinePlaybackEngine.getInstance().stopAllActiveSources();
     setPlaybackProgress(0);
     const firstShot = shots[0];
     if (firstShot) {
@@ -1791,16 +1841,20 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
               <span>Text</span>
             </button>
 
-            {/* NEW: Sleek Monochrome Record Voice Toggle */}
+            {/* Live Microphone Voice Recording Toggle */}
             <div className="w-[1px] h-4 bg-neutral-700 mx-1" />
 
             <button
-              onClick={() => setIsVoiceModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-neutral-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
-              title="Record Voiceover"
+              onClick={handleToggleLiveRecording}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                isLiveRecording
+                  ? 'bg-red-600 text-white animate-pulse'
+                  : 'text-neutral-300 hover:text-white hover:bg-white/10'
+              }`}
+              title={isLiveRecording ? 'Stop Voice Recording' : 'Start Live Voice Recording'}
             >
-              <span className="w-2 h-2 rounded-full bg-red-500" />
-              <span>Record Voice</span>
+              <span className={`w-2 h-2 rounded-full ${isLiveRecording ? 'bg-white' : 'bg-red-500'}`} />
+              <span>{isLiveRecording ? 'Recording...' : 'Record Voice'}</span>
             </button>
 
             <div className="w-[1px] h-4 bg-neutral-700 mx-1" />
