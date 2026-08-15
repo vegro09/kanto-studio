@@ -909,7 +909,12 @@ export default function WorkspaceCanvas({
                     ? 'ring-2 ring-[#2A2529] ring-offset-2 ring-offset-[#F3F0E7] shadow-2xl shadow-[#2A2529]/20' 
                     : 'hover:ring-1 hover:ring-[#2A2529]/40'
                 }`}
-                style={{ width: `${asset.width}px`, height: `${asset.height}px` }}
+                style={{
+                  width: asset.type === 'text' ? 'auto' : `${asset.width}px`,
+                  height: asset.type === 'text' ? 'auto' : `${asset.height}px`,
+                  maxWidth: 'none',
+                  whiteSpace: 'pre'
+                }}
               >
                 {asset.type === 'text' ? (
                   <KineticTextCanvas

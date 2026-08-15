@@ -138,8 +138,13 @@ export class CanvasRenderer {
     const fontFamily = layer.font.family;
     const isBold = layer.style.bold ? 'bold ' : '';
     const isItalic = layer.style.italic ? 'italic ' : '';
+    const charSpacing = layer.style.spacing?.char || 0;
     ctx.font = `${isItalic}${isBold}${fontSize}px "${fontFamily}", "Cairo", "Inter", sans-serif`;
     ctx.textBaseline = 'middle';
+
+    if ('letterSpacing' in ctx) {
+      (ctx as any).letterSpacing = `${charSpacing}px`;
+    }
 
     // Alignment and RTL handling
     const isArabic = FontManager.isArabicString(content);
@@ -147,16 +152,33 @@ export class CanvasRenderer {
     const align = layer.style.align || 'center';
     ctx.textAlign = align;
 
-    // Measure text dimensions
+    // Dynamic Text Dimension Auto-Fit Measurement
     const lines = content.split('\n');
     const lineHeight = fontSize * (layer.style.spacing?.line || 1.2);
-    const lineMetrics = lines.map((l) => ctx.measureText(l));
-    const maxLineWidth = Math.max(...lineMetrics.map((m) => m.width), 10);
+    const lineMetrics = lines.map((l) => {
+      const m = ctx.measureText(l);
+      // Account for glyph bounding box or advance width
+      const width = m.width || 10;
+      const actualLeft = m.actualBoundingBoxLeft || 0;
+      const actualRight = m.actualBoundingBoxRight || 0;
+      const boundingWidth = (actualLeft + actualRight) > width ? (actualLeft + actualRight) : width;
+      return Math.max(width, boundingWidth);
+    });
+    const maxLineWidth = Math.max(...lineMetrics, 10);
     const totalHeight = lines.length * lineHeight;
 
+    // Style Effects Buffers (Stroke, Glow, 3D Shadow, Italic Overhang)
     const bgPadding = layer.style.background?.enabled ? (layer.style.background.padding || 0) : 0;
-    const boxWidth = maxLineWidth + bgPadding * 2;
-    const boxHeight = totalHeight + bgPadding * 2;
+    const strokeExtra = layer.style.stroke?.enabled ? (layer.style.stroke.width || 0) : 0;
+    const glowExtra = (layer.style.glow?.enabled && glowBlur > 0) ? Math.min(glowBlur, 40) : 0;
+    const shadowExtra = (layer.style.shadow3D?.enabled && layer.style.shadow3D.distance > 0) ? layer.style.shadow3D.distance : 0;
+    const italicExtra = layer.style.italic ? Math.ceil(fontSize * 0.25) : 0;
+    const charSpacingExtra = charSpacing * Math.max(0, content.length - 1);
+
+    // Auto-fit box dimensions with generous side/vertical padding to prevent clipping
+    const extraPadding = Math.max(bgPadding, 4) + strokeExtra + Math.ceil(glowExtra * 0.5) + shadowExtra;
+    const boxWidth = Math.ceil(maxLineWidth + charSpacingExtra + italicExtra + extraPadding * 2);
+    const boxHeight = Math.ceil(totalHeight + extraPadding * 2);
 
     // 1. Background Box if enabled
     if (layer.style.background?.enabled) {

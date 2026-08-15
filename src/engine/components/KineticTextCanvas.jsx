@@ -11,8 +11,35 @@ export default function KineticTextCanvas({ asset, currentTimeSec = 0 }) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const width = typeof asset?.width === 'number' && asset.width > 0 ? asset.width : 300;
-    const height = typeof asset?.height === 'number' && asset.height > 0 ? asset.height : 100;
+    const textValue = asset?.textValue || asset?.textContent || asset?.text || 'Sample Text';
+    const fontSize = asset?.fontSize || 48;
+    const fontFamily = asset?.fontFamily || 'Inter';
+    const lineHeight = asset?.lineHeight || 1.2;
+    const strokeWidth = asset?.strokeWidth || 0;
+    const letterSpacing = asset?.letterSpacing || 0;
+
+    // Measure text dimensions accurately
+    ctx.font = `600 ${fontSize}px '${fontFamily}', sans-serif`;
+    if ('letterSpacing' in ctx) {
+      ctx.letterSpacing = `${letterSpacing}px`;
+    }
+    const lines = textValue.split('\n');
+    let maxLineWidth = 0;
+    lines.forEach((l) => {
+      const m = ctx.measureText(l);
+      const width = m.width || 10;
+      const actualLeft = m.actualBoundingBoxLeft || 0;
+      const actualRight = m.actualBoundingBoxRight || 0;
+      const boundingWidth = (actualLeft + actualRight) > width ? (actualLeft + actualRight) : width;
+      if (boundingWidth > maxLineWidth) maxLineWidth = boundingWidth;
+    });
+
+    const totalTextHeight = lines.length * fontSize * lineHeight;
+    const calculatedWidth = Math.ceil(maxLineWidth + strokeWidth * 2 + Math.abs(letterSpacing * textValue.length) + 60);
+    const calculatedHeight = Math.ceil(totalTextHeight + strokeWidth * 2 + 40);
+
+    const width = Math.max(calculatedWidth, asset?.width || 300);
+    const height = Math.max(calculatedHeight, asset?.height || 100);
 
     // High-DPI Canvas scaling for Retina crispness
     const dpr = window.devicePixelRatio || 1;
@@ -26,12 +53,12 @@ export default function KineticTextCanvas({ asset, currentTimeSec = 0 }) {
 
       // Frame-Perfect Kinetic Typography Render Loop with Error Boundary
       if (asset) {
-        renderKineticTextToCanvas(ctx, asset, currentTimeSec);
+        renderKineticTextToCanvas(ctx, { ...asset, width, height }, currentTimeSec);
       }
     } catch (err) {
       console.error("CRITICAL CANVAS ERROR in KineticTextCanvas:", err);
     } finally {
-      // TASK 3: ALWAYS RESTORE AND RESET CANVAS TRANSFORM MATRIX
+      // ALWAYS RESTORE AND RESET CANVAS TRANSFORM MATRIX
       ctx.restore();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
     }
@@ -41,10 +68,12 @@ export default function KineticTextCanvas({ asset, currentTimeSec = 0 }) {
     <canvas
       ref={canvasRef}
       style={{
-        width: `${asset?.width || 300}px`,
-        height: `${asset?.height || 100}px`,
+        width: 'auto',
+        height: 'auto',
+        maxWidth: 'none',
         pointerEvents: 'none',
-        display: 'block'
+        display: 'block',
+        whiteSpace: 'pre'
       }}
     />
   );
