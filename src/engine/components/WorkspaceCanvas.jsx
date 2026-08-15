@@ -1069,10 +1069,10 @@ export default function WorkspaceCanvas({
 
         {/* KANTO TEXT ENGINE TRANSPARENT INTERACTIVE OVERLAY */}
         <div
-          className="absolute inset-0 pointer-events-none"
+          className="absolute top-[800px] left-[800px] pointer-events-none"
           style={{
-            width: '8000px',
-            height: '8000px',
+            width: `${sceneSettings.width || 3200}px`,
+            height: `${sceneSettings.height || 2400}px`,
             zIndex: 1050,
           }}
         >
@@ -1080,8 +1080,8 @@ export default function WorkspaceCanvas({
             currentTimeSec={(playbackProgress || 0) * (totalDuration || 10)}
             totalDurationSec={totalDuration || 10}
             isPlaying={isPlaying}
-            sceneWidth={8000}
-            sceneHeight={8000}
+            sceneWidth={sceneSettings.width || 3200}
+            sceneHeight={sceneSettings.height || 2400}
             interactive={!isPanMode}
             onSelectLayer={(layerId) => {
               if (layerId) {

@@ -25,6 +25,8 @@ import {
 import VoiceOverModal from './VoiceOverModal';
 import AudioWaveform from './AudioWaveform';
 import { buildMotionPathChunks } from '../utils/motionPathEngine';
+import { PlayheadScrubber } from '../utils/PlayheadScrubber';
+import { ClipMovementEngine } from '../utils/ClipMovementEngine';
 
 // TASK 1: MULTI-TRACK LANES NO-OVERLAP STACKING ALGORITHM
 function groupIntoLanes(items) {
@@ -184,6 +186,39 @@ export default function BottomSequencer({
   const safeTotalDuration = Math.max(totalDuration, 0.5);
   const currentTimestampSec = playbackProgress * safeTotalDuration;
 
+  // Initialize and keep PlayheadScrubber & ClipMovementEngine instances synced
+  const playheadScrubberRef = useRef(null);
+  if (!playheadScrubberRef.current) {
+    playheadScrubberRef.current = new PlayheadScrubber({
+      pxPerSecond,
+      getTotalDuration: () => safeTotalDuration,
+      isPlaying,
+      onSetCurrentTime,
+      onScrubProgress,
+      onTogglePlay
+    });
+  }
+  playheadScrubberRef.current.updateConfig({
+    pxPerSecond,
+    getTotalDuration: () => safeTotalDuration,
+    isPlaying,
+    onSetCurrentTime,
+    onScrubProgress,
+    onTogglePlay
+  });
+
+  const clipMovementEngineRef = useRef(null);
+  if (!clipMovementEngineRef.current) {
+    clipMovementEngineRef.current = new ClipMovementEngine({
+      pxPerSecond,
+      onUpdateAsset
+    });
+  }
+  clipMovementEngineRef.current.updateConfig({
+    pxPerSecond,
+    onUpdateAsset
+  });
+
   // Global Keyboard Shortcuts (V for Pointer, C for Razor)
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -211,15 +246,22 @@ export default function BottomSequencer({
   const handleClipDragStart = (e, item, type) => {
     if (activeTool === 'razor') return;
     e.stopPropagation();
-    setDraggingItem({
-      id: item.id,
-      type, // 'shot' | 'audio' | 'text' | 'media'
-      startMouseX: e.clientX,
-      startMouseY: e.clientY,
-      initialStartTimeSec: item.startTimeSec || 0,
-      initialLane: item.trackLane || 0,
-      initialShotIndex: shots.findIndex((s) => s.id === item.id)
-    });
+    if (type === 'shot') {
+      setDraggingItem({
+        id: item.id,
+        clipId: item.id,
+        type,
+        startMouseX: e.clientX,
+        startMouseY: e.clientY,
+        initialStartTimeSec: item.startTimeSec || 0,
+        initialLane: item.trackLane || 0,
+        initialShotIndex: shots.findIndex((s) => s.id === item.id)
+      });
+    } else {
+      clipMovementEngineRef.current.startClipDrag(e, item, assets, (dragState) => {
+        setDraggingItem(dragState);
+      });
+    }
   };
 
   // Trimming / Resizing Drag Handler for Shots and Assets
@@ -413,6 +455,9 @@ export default function BottomSequencer({
   const imageLanes = renderCategoryLanes((assets || []).filter((a) => a && (a.type === 'image' || a.type === 'background' || a.category === 'Images') && !isIconElement(a)));
   const textLanes = renderDedicatedLanes((assets || []).filter((a) => a && a.type === 'text'));
   const audioLanes = renderCategoryLanes((assets || []).filter((a) => a && (a.type === 'audio' || a.category === 'Audio')));
+  const displayAudioLanes = audioLanes.length > 0 
+    ? (audioLanes.length === 1 ? [...audioLanes, { laneIndex: 1, laneItems: [] }] : audioLanes)
+    : [{ laneIndex: 0, laneItems: [] }, { laneIndex: 1, laneItems: [] }];
 
   return (
     <footer 
@@ -626,22 +671,30 @@ export default function BottomSequencer({
           </div>
         </div>
 
-        {/* TASK 3: MULTI-TRACK NLE TIMELINE CONTAINER WITH AUTO-EXPANDING SCROLLBAR */}
+        {/* MULTI-TRACK NLE TIMELINE CONTAINER WITH AUTO-EXPANDING SCROLLBAR */}
         <div 
+          id="tracks-viewport"
+          onClick={(e) => {
+            // Clicking empty area deselects active clip and returns right sidebar to library view
+            if (e.target === e.currentTarget || e.target.getAttribute('data-track-bg') === 'true') {
+              if (onSelectAsset) onSelectAsset(null);
+            }
+          }}
           className={`flex-1 overflow-x-auto overflow-y-auto p-3 relative custom-scrollbar bg-[#211C1F] space-y-2.5 ${
             activeTool === 'razor' ? 'cursor-crosshair' : 'cursor-default'
           }`}
         >
           {/* MASTER TIME RULER WITH PERFECT ZERO-POINT SIDEBAR ALIGNMENT */}
           <div className="flex items-center relative h-6 border-b border-white/10 shrink-0">
-            <div className="w-20 text-[9px] font-mono font-bold text-zinc-500 shrink-0 flex items-center gap-1 border-r border-white/10 pr-2 uppercase">
+            <div className="w-20 text-[9px] font-mono font-bold text-zinc-500 shrink-0 flex items-center gap-1 border-r border-white/10 pr-2 uppercase select-none">
               RULER
             </div>
             <div 
+              id="timeline-ruler"
               ref={trackRef}
-              onClick={handleRulerClick}
+              onMouseDown={(e) => playheadScrubberRef.current.startScrub(e, trackRef)}
               style={{ width: `${safeTotalDuration * pxPerSecond}px` }}
-              className="h-6 relative cursor-pointer group shrink-0"
+              className="h-6 relative cursor-pointer group shrink-0 select-none"
             >
               {rulerTicks.map((tick) => {
                 const leftPx = tick.sec * pxPerSecond;
@@ -662,12 +715,19 @@ export default function BottomSequencer({
                 );
               })}
 
-              {/* ZERO-BASED MASTER PLAYHEAD MARKER */}
+              {/* 60FPS INTERACTIVE BIDIRECTIONAL PLAYHEAD MARKER WITH SCRUB HANDLE */}
               <div 
+                id="timeline-playhead"
                 style={{ left: `${currentTimestampSec * pxPerSecond}px` }}
-                className="absolute top-0 bottom-0 w-0.5 bg-[#F3F0E7] z-30 shadow-md pointer-events-none"
+                className="absolute top-0 bottom-0 w-[2px] bg-red-500 z-50 pointer-events-none transform translate-x-0 will-change-transform shadow-md"
               >
-                <div className="w-3 h-3 bg-[#F3F0E7] rotate-45 -translate-x-[5px] -translate-y-1 shadow-sm" />
+                {/* Grabbable Head */}
+                <div 
+                  id="playhead-handle" 
+                  onMouseDown={(e) => playheadScrubberRef.current.startScrub(e, trackRef)}
+                  className="w-4 h-4 bg-red-500 -ml-[7px] -top-1 absolute rotate-45 rounded-sm cursor-ew-resize pointer-events-auto hover:scale-125 transition-transform shadow-lg z-50"
+                  title="Drag to Scrub"
+                />
               </div>
             </div>
           </div>
@@ -997,40 +1057,56 @@ export default function BottomSequencer({
             </div>
           ))}
 
-          {/* TASK 1: MULTI-TRACK AUDIO LANES */}
-          {audioLanes.map(({ laneIndex, laneItems }) => (
-            <div key={`audio-lane-${laneIndex}`} className="flex items-center relative min-h-[44px]">
-              <div className="w-20 text-[10px] font-mono font-bold text-emerald-400 shrink-0 flex items-center gap-1 border-r border-white/10 pr-2">
-                <Music className="w-3 h-3 text-emerald-400" /> AUD {laneIndex + 1}
+          {/* TASK 1: MULTI-TRACK AUDIO & SFX LANES (SFX 1, SFX 2, VOICE-OVER) */}
+          {displayAudioLanes.map(({ laneIndex, laneItems }) => (
+            <div 
+              key={`audio-lane-${laneIndex}`}
+              data-track-id={`sfx_${laneIndex + 1}`}
+              data-track-lane={laneIndex}
+              data-track-bg="true"
+              className="flex items-center relative min-h-[44px] rounded-lg hover:bg-white/[0.02] transition-colors"
+            >
+              <div className="w-20 text-[10px] font-mono font-bold text-emerald-400 shrink-0 flex items-center gap-1 border-r border-white/10 pr-2 select-none">
+                <Music className="w-3 h-3 text-emerald-400" /> {laneIndex === 0 ? 'SFX 1' : laneIndex === 1 ? 'SFX 2' : `AUD ${laneIndex + 1}`}
               </div>
               <div 
+                data-track-bg="true"
                 style={{ width: `${safeTotalDuration * pxPerSecond}px` }}
                 className="flex items-center relative min-h-[44px] shrink-0"
               >
                 {laneItems.map((audio) => {
                   const audioWidth = (audio.duration || 3.0) * pxPerSecond;
                   const leftPos = (audio.startTimeSec || 0) * pxPerSecond;
+                  const isSelected = selectedAssetId === audio.id;
+                  const isDraggingThis = draggingItem && (draggingItem.id === audio.id || draggingItem.clipId === audio.id);
 
                   return (
                     <div
                       key={audio.id}
+                      data-clip-id={audio.id}
                       onMouseDown={(e) => handleClipDragStart(e, audio, 'audio')}
                       onClick={(e) => handleAudioClipClick(e, audio)}
                       style={{ left: `${leftPos}px`, width: `${Math.max(audioWidth, 80)}px` }}
-                      className={`absolute h-11 bg-emerald-950/90 border border-emerald-500/50 text-emerald-200 rounded-xl px-2 py-1 text-[10px] flex flex-col justify-between font-mono shadow-md group overflow-hidden transition-all ${
-                        activeTool === 'razor' ? 'cursor-crosshair hover:border-rose-400' : 'cursor-grab active:cursor-grabbing hover:border-emerald-400'
+                      className={`audio-clip-item absolute h-11 rounded-xl px-2 py-1 text-[10px] flex flex-col justify-between font-mono shadow-md group overflow-hidden transition-all select-none ${
+                        isDraggingThis
+                          ? 'opacity-70 ring-2 ring-white cursor-grabbing z-30 shadow-2xl scale-[1.02] bg-emerald-800 border-white'
+                          : isSelected
+                          ? 'bg-emerald-900 border-2 border-white text-white ring-2 ring-emerald-400/40 z-20'
+                          : 'bg-emerald-950/90 border border-emerald-500/50 text-emerald-200 hover:border-emerald-400'
+                      } ${
+                        activeTool === 'razor' ? 'cursor-crosshair hover:border-rose-400' : 'cursor-grab'
                       }`}
                     >
                       {activeTool === 'select' && (
                         <>
                           <div 
                             onMouseDown={(e) => handleTrimMouseDown(e, audio, 'left', true)}
-                            className="absolute left-0 top-0 bottom-0 w-2.5 cursor-ew-resize opacity-0 group-hover:opacity-100 hover:bg-white/40 rounded-l-xl transition-opacity z-20"
+                            className="resize-handle absolute left-0 top-0 bottom-0 w-2.5 cursor-ew-resize opacity-0 group-hover:opacity-100 hover:bg-white/40 rounded-l-xl transition-opacity z-20"
                             title="Drag left edge to trim start time"
                           />
                           <div 
                             onMouseDown={(e) => handleTrimMouseDown(e, audio, 'right', true)}
-                            className="absolute right-0 top-0 bottom-0 w-2.5 cursor-ew-resize opacity-0 group-hover:opacity-100 hover:bg-white/40 rounded-r-xl transition-opacity z-20"
+                            className="resize-handle absolute right-0 top-0 bottom-0 w-2.5 cursor-ew-resize opacity-0 group-hover:opacity-100 hover:bg-white/40 rounded-r-xl transition-opacity z-20"
                             title="Drag right edge to change duration"
                           />
                         </>
