@@ -806,7 +806,7 @@ export default function WorkspaceCanvas({
         })}
 
         {/* LAYER 1: VISUAL SCENE ASSETS (EXCLUDES AUDIO AND TEXT ASSETS MANAGED BY KANTO TEXT OVERLAY) */}
-        {sortedAssets.filter((a) => a && a.type !== 'audio' && a.type !== 'text' && a.category !== 'Audio' && a.category !== 'Text').map((asset) => {
+        {sortedAssets.filter((a) => a && a.type !== 'audio' && a.type !== 'text' && a.category !== 'Audio' && a.category !== 'Text').map((asset, idx) => {
           const isSelected = selectedAssetId === asset.id;
           const currentSec = (playbackProgress || 0) * (totalDuration || 10);
 
@@ -898,13 +898,13 @@ export default function WorkspaceCanvas({
                 transform: `rotate(${renderRotation}deg) scale(${renderScaleX * (asset.scale || 1)}, ${renderScaleY * (asset.scale || 1)})`,
                 transformOrigin: 'center center',
                 opacity: asset.opacity,
-                zIndex: (asset.zIndex % 1000) + 1,
+                zIndex: (asset.type === 'background' || asset.isBackgroundLayer || asset.category === 'Stock') ? 1 : (idx + 10),
                 cursor: asset.isLocked ? 'not-allowed' : isSelected ? 'move' : 'pointer'
               }}
               className="group select-none"
             >
               <div
-                className={`relative transition-shadow rounded-xl p-1 ${
+                className={`relative transition-shadow rounded-xl p-1 bg-transparent ${
                   isSelected 
                     ? 'ring-2 ring-[#2A2529] ring-offset-2 ring-offset-[#F3F0E7] shadow-2xl shadow-[#2A2529]/20' 
                     : 'hover:ring-1 hover:ring-[#2A2529]/40'
