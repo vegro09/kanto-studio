@@ -167,6 +167,16 @@ export class CanvasRenderer {
     const maxLineWidth = Math.max(...lineMetrics, 10);
     const totalHeight = lines.length * lineHeight;
 
+    // Precise Alignment Offset so text is always centered within bounding box
+    let lineOffsetX = 0;
+    if (align === 'left') {
+      lineOffsetX = -maxLineWidth / 2;
+    } else if (align === 'right') {
+      lineOffsetX = maxLineWidth / 2;
+    } else {
+      lineOffsetX = 0;
+    }
+
     // Style Effects Buffers (Stroke, Glow, 3D Shadow, Italic Overhang)
     const bgPadding = layer.style.background?.enabled ? (layer.style.background.padding || 0) : 0;
     const strokeExtra = layer.style.stroke?.enabled ? (layer.style.stroke.width || 0) : 0;
@@ -204,7 +214,7 @@ export class CanvasRenderer {
       const dist = layer.style.shadow3D.distance;
       const step = Math.max(1, Math.floor(dist / 4));
       for (let i = dist; i >= 1; i -= step) {
-        this.renderTextLines(ctx, lines, i, i, lineHeight, totalHeight, false);
+        this.renderTextLines(ctx, lines, lineOffsetX + i, i, lineHeight, totalHeight, false);
       }
       ctx.restore();
     }
@@ -215,7 +225,7 @@ export class CanvasRenderer {
       ctx.shadowColor = glowColor;
       ctx.shadowBlur = Math.min(glowBlur, 40);
       ctx.fillStyle = glowColor;
-      this.renderTextLines(ctx, lines, 0, 0, lineHeight, totalHeight, false);
+      this.renderTextLines(ctx, lines, lineOffsetX, 0, lineHeight, totalHeight, false);
       ctx.shadowBlur = 0;
       ctx.shadowColor = 'transparent';
       ctx.restore();
@@ -228,13 +238,13 @@ export class CanvasRenderer {
       ctx.lineWidth = layer.style.stroke.width;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
-      this.renderTextLines(ctx, lines, 0, 0, lineHeight, totalHeight, true);
+      this.renderTextLines(ctx, lines, lineOffsetX, 0, lineHeight, totalHeight, true);
       ctx.restore();
     }
 
     // 5. Main Fill Text
     ctx.fillStyle = layer.style.fill;
-    this.renderTextLines(ctx, lines, 0, 0, lineHeight, totalHeight, false);
+    this.renderTextLines(ctx, lines, lineOffsetX, 0, lineHeight, totalHeight, false);
 
     // 6. Underline if enabled
     if (layer.style.underline) {

@@ -72,8 +72,8 @@ const DEFAULT_LAYER_1: KantoTextNode = {
   id: 'layer-1',
   content: 'KANTO MOTION',
   transform: {
-    x: 540,
-    y: 860,
+    x: 1600,
+    y: 1200,
     scale: 1,
     rotation: 0,
   },
@@ -203,8 +203,8 @@ const DEFAULT_LAYER_2: KantoTextNode = {
 export const DEFAULT_TEXT_STATE: Omit<KantoTextNode, 'id'> = {
   content: 'KANTO MOTION',
   transform: {
-    x: 0,
-    y: 0,
+    x: 1600,
+    y: 1200,
     scale: 1,
     rotation: 0,
   },
@@ -314,8 +314,8 @@ export const useEngineStore = create<EngineState>((set, get) => ({
     const dims = get().canvasDimensions;
     const dur = typeof durationSec === 'number' && durationSec > 0 ? durationSec : 5.0;
     const start = typeof startTimeSec === 'number' && Number.isFinite(startTimeSec) ? Math.max(0, startTimeSec) : 0;
-    const posX = typeof customX === 'number' && Number.isFinite(customX) ? customX : (dims.width / 2);
-    const posY = typeof customY === 'number' && Number.isFinite(customY) ? customY : (dims.height / 2);
+    const posX = typeof customX === 'number' && Number.isFinite(customX) ? customX : (dims?.width ? dims.width / 2 : 1600);
+    const posY = typeof customY === 'number' && Number.isFinite(customY) ? customY : (dims?.height ? dims.height / 2 : 1200);
 
     const defaultStateCopy = JSON.parse(JSON.stringify(DEFAULT_TEXT_STATE));
 
