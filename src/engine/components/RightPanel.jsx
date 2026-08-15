@@ -106,16 +106,14 @@ export default function RightPanel({
   const activeTextLayer = textEngineLayers.find((l) => l.id === activeLayerId) || null;
   const isTextLayerSelected = Boolean(activeTextLayer);
 
-  const isAudioClipSelected = Boolean(selectedAsset?.type === 'audio' || selectedAsset?.category === 'Audio');
-  const [inspectorMode, setInspectorMode] = useState('CAMERA');
-
-  useEffect(() => {
-    if (isAudioClipSelected) {
-      setInspectorMode('AUDIO');
-    }
-  }, [isAudioClipSelected, selectedAsset?.id]);
-
-  const isAudioActive = !isTextLayerSelected && (inspectorMode === 'AUDIO' || isAudioClipSelected);
+  const isAudioActive = !isTextLayerSelected && Boolean(
+    selectedAsset && (
+      selectedAsset.type === 'audio' ||
+      selectedAsset.category === 'Audio' ||
+      (typeof selectedAsset.trackId === 'string' && selectedAsset.trackId.startsWith('sfx')) ||
+      Boolean(selectedAsset.sfxId)
+    )
+  );
 
   // Custom Presets State (Persisted in localStorage)
   const [customPresets, setCustomPresets] = useState(() => {
@@ -283,32 +281,11 @@ export default function RightPanel({
         {/* Panel Header */}
         <div className="p-3 border-b border-white/10 flex flex-col gap-2 bg-[#211C1F]">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <Sliders className="w-3.5 h-3.5 text-[#F3F0E7]" />
-              <span className="text-xs font-bold tracking-widest text-white uppercase">INSPECTOR</span>
-            </div>
-
-            {/* Dynamic Context Tabs */}
-            <div className="flex items-center bg-[#181416] p-0.5 rounded-lg border border-white/10">
-              <button
-                type="button"
-                onClick={() => setInspectorMode('CAMERA')}
-                className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
-                  !isAudioActive ? 'bg-[#2A2529] text-white shadow-sm border border-white/15' : 'text-zinc-500 hover:text-zinc-300'
-                }`}
-              >
-                CAMERA
-              </button>
-              <button
-                type="button"
-                onClick={() => setInspectorMode('AUDIO')}
-                className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${
-                  isAudioActive ? 'bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/40 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'
-                }`}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-[#00E5FF]" />
-                AUDIO
-              </button>
+            <div className="flex items-center gap-2">
+              <Sliders className="w-3.5 h-3.5 text-zinc-400" />
+              <span className="text-xs font-bold tracking-widest text-white uppercase">
+                {isTextLayerSelected ? 'TEXT INSPECTOR' : isAudioActive ? 'AUDIO INSPECTOR' : 'INSPECTOR'}
+              </span>
             </div>
 
             <div className="flex items-center gap-2">
@@ -336,9 +313,9 @@ export default function RightPanel({
           <button
             id="export-video-btn"
             onClick={onOpenExportModal}
-            className="w-full py-1.5 px-3 bg-[#F3F0E7] hover:bg-white text-[#2A2529] rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md transition-all active:scale-95 cursor-pointer mt-0.5"
+            className="w-full py-2 px-3 bg-white hover:bg-zinc-200 text-black rounded-lg text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95 cursor-pointer mt-0.5"
           >
-            <Download className="w-4 h-4 text-[#2A2529]" />
+            <Download className="w-4 h-4 text-black" />
             <span>Export Video (MP4)</span>
           </button>
         </div>
@@ -350,7 +327,7 @@ export default function RightPanel({
         ) : isAudioActive ? (
           <div className="flex-1 overflow-y-auto p-3 custom-scrollbar bg-[#121212]">
             <AudioInspectorRack
-              selectedClip={isAudioClipSelected ? selectedAsset : null}
+              selectedClip={selectedAsset}
               updateClip={onUpdateAsset}
               removeClip={onDeleteAsset}
             />

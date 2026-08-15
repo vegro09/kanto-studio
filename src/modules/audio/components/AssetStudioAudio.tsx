@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, Upload, Search, Volume2, Plus } from 'lucide-react';
+import { Play, Upload, Search, Plus } from 'lucide-react';
 import { SFX_CATALOG } from '../core/SoundLibrary';
 import { ProceduralAudioEngine } from '../core/ProceduralAudioEngine';
 
@@ -74,8 +74,8 @@ export const AssetStudioAudio: React.FC<AssetStudioAudioProps> = ({ onAddAudioCl
   return (
     <div className="space-y-3.5 select-none">
       {/* Upload Custom Audio Button */}
-      <label className="flex items-center justify-center gap-2 w-full py-2.5 px-3 bg-neutral-900 border border-neutral-700 hover:border-[#00E5FF]/60 rounded-xl cursor-pointer text-xs font-semibold text-white transition-all shadow-sm group">
-        <Upload className="w-4 h-4 text-neutral-400 group-hover:text-[#00E5FF] transition-colors" />
+      <label className="flex items-center justify-center gap-2 w-full py-2.5 px-3 bg-neutral-900 border border-neutral-700 hover:border-white/60 rounded-xl cursor-pointer text-xs font-semibold text-white transition-all shadow-sm group">
+        <Upload className="w-4 h-4 text-neutral-400 group-hover:text-white transition-colors" />
         <span>Upload Audio (WAV / MP3)</span>
         <input type="file" accept="audio/*" multiple onChange={handleFileUpload} className="hidden" />
       </label>
@@ -88,20 +88,20 @@ export const AssetStudioAudio: React.FC<AssetStudioAudioProps> = ({ onAddAudioCl
           placeholder="Search 43+ Procedural Sounds..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full bg-neutral-900 border border-neutral-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#00E5FF]/50"
+          className="w-full bg-neutral-900 border border-neutral-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-white/50"
         />
       </div>
 
-      {/* Category Chips */}
+      {/* Category Chips: Black & White Active State */}
       <div className="flex gap-1.5 flex-wrap">
         {categories.map((cat) => (
           <button
             key={cat}
             onClick={() => setActiveCategory(cat)}
-            className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-colors cursor-pointer ${
+            className={`px-3 py-1 rounded text-[11px] font-bold transition-all cursor-pointer ${
               activeCategory === cat
-                ? 'bg-[#00E5FF] text-black shadow-sm'
-                : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800'
+                ? 'bg-white text-black shadow-sm'
+                : 'bg-neutral-900 text-neutral-400 hover:text-white border border-neutral-800 hover:border-neutral-700'
             }`}
           >
             {cat}
@@ -140,7 +140,7 @@ export const AssetStudioAudio: React.FC<AssetStudioAudioProps> = ({ onAddAudioCl
                     if (sfx.trigger) sfx.trigger();
                   });
                 }}
-                className="w-6 h-6 rounded-md bg-neutral-800 group-hover:bg-[#00E5FF] group-hover:text-black text-neutral-400 flex items-center justify-center transition-colors text-[10px] flex-shrink-0 cursor-pointer shadow-sm"
+                className="w-6 h-6 rounded-md bg-neutral-800 group-hover:bg-white group-hover:text-black text-neutral-400 flex items-center justify-center transition-colors text-[10px] flex-shrink-0 cursor-pointer shadow-sm"
                 title="Preview Sound"
               >
                 <Play className="w-3 h-3 fill-current ml-0.5" />
