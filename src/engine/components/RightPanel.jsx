@@ -44,6 +44,7 @@ import { VISUAL_FILTERS } from '../utils/canvasFilters';
 import BezierGraphEditor from './BezierGraphEditor';
 import { EASING_PRESETS } from '../utils/motionPathEngine';
 import { KantoTextInspector, useEngineStore } from '../../modules/KantoTextEngine';
+import AudioStudioPanel from './AudioStudioPanel';
 
 function BezierGraphPreview({ points }) {
   const [x1, y1, x2, y2] = points || [0.42, 0, 0.58, 1];
@@ -98,12 +99,27 @@ export default function RightPanel({
   isRemovingBg = false,
   onOpenExportModal,
   onAddModularPart,
+  assets = [],
+  onAddAudioTrack,
+  onOpenVoiceModal,
   playbackProgress = 0,
   totalDuration = 10
 }) {
   const { activeLayerId, layers: textEngineLayers, selectLayer } = useEngineStore();
   const activeTextLayer = textEngineLayers.find((l) => l.id === activeLayerId) || null;
   const isTextLayerSelected = Boolean(activeTextLayer);
+
+  // TOP LEVEL TAB SWITCHER ('visual' | 'audio')
+  const [activeMainTab, setActiveMainTab] = useState('visual');
+
+  // CONTEXT-AWARE AUTO SWITCHING (SMART TRIGGER)
+  useEffect(() => {
+    if (selectedAsset && (selectedAsset.type === 'audio' || selectedAsset.category === 'Audio')) {
+      setActiveMainTab('audio');
+    } else if (selectedAsset || isTextLayerSelected) {
+      setActiveMainTab('visual');
+    }
+  }, [selectedAsset?.id, selectedAsset?.type, isTextLayerSelected]);
 
   // Custom Presets State (Persisted in localStorage)
   const [customPresets, setCustomPresets] = useState(() => {
@@ -314,9 +330,47 @@ export default function RightPanel({
             <Download className="w-4 h-4 text-[#2A2529]" />
             <span>Export Video (MP4)</span>
           </button>
+
+          {/* 1. TOP TAB SWITCHER IN THE RIGHT PANEL (STRICT MONOCHROME BLACK & WHITE) */}
+          <div className="grid grid-cols-2 gap-1 bg-[#1A1618] p-1 rounded-xl border border-white/15 my-0.5">
+            <button
+              onClick={() => setActiveMainTab('visual')}
+              className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeMainTab === 'visual'
+                  ? 'bg-white text-black shadow-sm font-black'
+                  : 'bg-transparent text-zinc-400 hover:text-white'
+              }`}
+            >
+              <Sliders className="w-3.5 h-3.5" />
+              <span>Visual / Inspector</span>
+            </button>
+
+            <button
+              onClick={() => setActiveMainTab('audio')}
+              className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeMainTab === 'audio'
+                  ? 'bg-white text-black shadow-sm font-black'
+                  : 'bg-transparent text-zinc-400 hover:text-white'
+              }`}
+            >
+              <Music className="w-3.5 h-3.5" />
+              <span>Audio Studio</span>
+            </button>
+          </div>
         </div>
 
-        {isTextLayerSelected ? (
+        {activeMainTab === 'audio' ? (
+          <AudioStudioPanel
+            selectedAsset={selectedAsset}
+            onUpdateAsset={onUpdateAsset}
+            onDeleteAsset={onDeleteAsset}
+            assets={assets}
+            onAddAudioTrack={onAddAudioTrack}
+            playbackProgress={playbackProgress}
+            totalDuration={totalDuration}
+            onOpenVoiceModal={onOpenVoiceModal}
+          />
+        ) : isTextLayerSelected ? (
           <div className="flex-1 overflow-hidden h-full flex flex-col bg-[#0c0c0c] w-full">
             <KantoTextInspector />
           </div>

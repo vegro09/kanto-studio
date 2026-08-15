@@ -1656,6 +1656,8 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
           customFonts={customFonts}
           onRemoveBackground={handleRemoveBackground}
           isRemovingBg={isRemovingBg}
+          assets={assets}
+          onAddAudioTrack={handleAddAudioTrack}
           onOpenExportModal={() => setIsExportModalOpen(true)}
           onAddModularPart={handleAddModularPart}
           playbackProgress={playbackProgress}
