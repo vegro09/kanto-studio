@@ -110,7 +110,7 @@ export const AssetStudioAudio: React.FC<AssetStudioAudioProps> = ({ onAddAudioCl
       </div>
 
       {/* Draggable Sound Cards */}
-      <div className="grid grid-cols-1 gap-2 max-h-[380px] overflow-y-auto pr-1 custom-scrollbar">
+      <div className="grid grid-cols-1 gap-2 max-h-[380px] custom-scrollbar pr-1.5">
         {filteredSFX.map((sfx) => (
           <div
             key={sfx.id}

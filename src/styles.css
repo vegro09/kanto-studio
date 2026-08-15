@@ -143,6 +143,8 @@
 @layer base {
   * {
     border-color: var(--color-border);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
   }
 
   body {
@@ -155,3 +157,87 @@
     font-family: inherit;
   }
 }
+
+/* ==========================================================================
+   KANTO MOTION: MINIMALIST DARK SCROLLBAR DESIGN SYSTEM
+   ========================================================================== */
+
+/* 1. Global Reset for WebKit (Chrome, Edge, Safari) */
+::-webkit-scrollbar {
+  width: 5px;               /* Vertical scrollbar width */
+  height: 5px;              /* Horizontal scrollbar height */
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;  /* Invisible track to blend with panel background */
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15); /* Subtle translucent white */
+  border-radius: 9999px;                  /* Smooth pill shape */
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);  /* Brighter on hover */
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* 2. Dedicated Utility Class: .custom-scrollbar */
+.custom-scrollbar {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #262626 transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #262626;
+  border-radius: 4px;
+}
+
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: #404040;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #737373;
+}
+
+/* 3. Timeline Horizontal Scrollbar Utility: .timeline-scrollbar */
+.timeline-scrollbar {
+  overflow-x: auto;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #2a2a2a #0d0d0d;
+}
+
+.timeline-scrollbar::-webkit-scrollbar {
+  height: 4px;
+  width: 4px;
+}
+
+.timeline-scrollbar::-webkit-scrollbar-track {
+  background: #0d0d0d;
+}
+
+.timeline-scrollbar::-webkit-scrollbar-thumb {
+  background: #2a2a2a;
+  border-radius: 4px;
+}
+
+.timeline-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #525252;
+}
+

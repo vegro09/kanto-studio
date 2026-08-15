@@ -657,7 +657,8 @@ export default function BottomSequencer({
               console.error("Timeline drop error:", err);
             }
           }}
-          className={`flex-1 overflow-x-auto overflow-y-auto p-3 relative custom-scrollbar bg-[#211C1F] space-y-2.5 ${
+          id="tracks-viewport"
+          className={`flex-1 timeline-scrollbar p-3 relative bg-[#211C1F] space-y-2.5 select-none ${
             activeTool === 'razor' ? 'cursor-crosshair' : 'cursor-default'
           }`}
         >
