@@ -37,10 +37,8 @@ import {
   Compass,
   Activity,
   TrendingUp,
-  Square,
-  User
+  Square
 } from 'lucide-react';
-import ModularCharacterSidebar from './ModularCharacterSidebar';
 import { ANIMATION_PRESETS } from '../utils/kineticTypography';
 import { VISUAL_FILTERS } from '../utils/canvasFilters';
 import BezierGraphEditor from './BezierGraphEditor';
@@ -121,7 +119,6 @@ export default function RightPanel({
   const [customWidth, setCustomWidth] = useState(sceneSettings?.width || 1080);
   const [customHeight, setCustomHeight] = useState(sceneSettings?.height || 1920);
   const [isSavedNotice, setIsSavedNotice] = useState(false);
-  const [rightPanelTab, setRightPanelTab] = useState('inspector');
 
   const standardPresets = [
     { id: 'v_9_16', name: 'Vertical 9:16 (1080 x 1920) - TikTok/Reels/Shorts', w: 1080, h: 1920, aspect: '9:16', camW: 270, camH: 480 },
@@ -271,17 +268,13 @@ export default function RightPanel({
         }`}
       >
         <aside className="w-80 bg-[#2A2529]/95 backdrop-blur-md border border-white/10 rounded-2xl flex flex-col h-full select-none shadow-2xl overflow-hidden">
-        {/* Panel Header & Mode Switcher */}
+        {/* Panel Header */}
         <div className="p-3 border-b border-white/10 flex flex-col gap-2 bg-[#211C1F]">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-bold text-[#F3F0E7] uppercase tracking-wider flex items-center gap-1.5">
               {isTextLayerSelected ? (
                 <>
                   <Type className="w-3.5 h-3.5 text-blue-400" /> Text Inspector
-                </>
-              ) : rightPanelTab === 'character_assembly' ? (
-                <>
-                  <User className="w-3.5 h-3.5 text-purple-400" /> Modular Character
                 </>
               ) : (
                 <>
@@ -313,34 +306,6 @@ export default function RightPanel({
             </div>
           </div>
 
-          {/* TWO MAIN MODE TABS (When not in text inspection mode) */}
-          {!isTextLayerSelected && (
-            <div className="flex bg-[#1E191C] p-1 rounded-xl border border-white/10 gap-1">
-              <button
-                onClick={() => setRightPanelTab('inspector')}
-                className={`flex-1 py-1 px-2 text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  rightPanelTab === 'inspector'
-                    ? 'bg-[#F3F0E7] text-[#2A2529] font-bold shadow-xs'
-                    : 'text-zinc-400 hover:text-[#F3F0E7]'
-                }`}
-              >
-                <Sliders className="w-3 h-3" />
-                <span>Inspector</span>
-              </button>
-              <button
-                onClick={() => setRightPanelTab('character_assembly')}
-                className={`flex-1 py-1 px-2 text-[11px] font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  rightPanelTab === 'character_assembly'
-                    ? 'bg-purple-600 text-white font-bold shadow-xs'
-                    : 'text-purple-300/70 hover:text-purple-200'
-                }`}
-              >
-                <User className="w-3 h-3" />
-                <span>Character Rig</span>
-              </button>
-            </div>
-          )}
-
           {/* EXPORT BUTTON */}
           <button
             onClick={onOpenExportModal}
@@ -354,16 +319,6 @@ export default function RightPanel({
         {isTextLayerSelected ? (
           <div className="flex-1 overflow-hidden h-full flex flex-col bg-[#0c0c0c] w-full">
             <KantoTextInspector />
-          </div>
-        ) : rightPanelTab === 'character_assembly' ? (
-          <div className="flex-1 overflow-y-auto custom-scrollbar">
-            <ModularCharacterSidebar
-              selectedAsset={selectedAsset}
-              onUpdateAsset={onUpdateAsset}
-              onAddModularPart={onAddModularPart}
-              playbackProgress={playbackProgress}
-              totalDuration={totalDuration}
-            />
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">
