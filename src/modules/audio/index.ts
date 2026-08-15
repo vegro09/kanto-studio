@@ -1,5 +1,6 @@
 export { ProceduralAudioEngine, VoiceFilterEngine, VOICE_FILTERS } from './core/ProceduralAudioEngine';
-export { SFX_PRESETS, SFX_CATALOG, getProceduralSFXBuffer } from './core/SoundLibrary';
+export { SFX_PRESETS, SFX_CATALOG, getProceduralSFXBuffer, registerCustomAudioBuffer, customAudioBufferCache } from './core/SoundLibrary';
+export type { SFXItem } from './core/SoundLibrary';
 export { drawWaveform } from './core/WaveformRenderer';
 export { AudioExportMixer } from './core/AudioExportMixer';
 export type { ExportAudioClip } from './core/AudioExportMixer';

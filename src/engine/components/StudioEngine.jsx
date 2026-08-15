@@ -26,7 +26,7 @@ import {
 import { DEFAULT_DEMO_PROJECT } from '../data/presetAssets';
 import { getProject, saveProject } from '../../lib/projectStore';
 import { useEngineStore } from '../../modules/KantoTextEngine';
-import { ProceduralAudioEngine, SFX_PRESETS } from '../../modules/audio';
+import { ProceduralAudioEngine, SFX_PRESETS, customAudioBufferCache } from '../../modules/audio';
 
 export default function StudioEngine({ projectId, onSaveStatusChange }) {
   // Core Application State - Restored from localStorage on initial mount
@@ -1496,7 +1496,24 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
       if (isDue && !playedClipsRef.current.has(clip.id)) {
         playedClipsRef.current.add(clip.id);
 
-        if (clip.sfxId && SFX_PRESETS[clip.sfxId]) {
+        const customBuffer = clip.buffer || (clip.sfxId ? customAudioBufferCache.get(clip.sfxId) : null);
+
+        if (customBuffer) {
+          try {
+            const source = engine.ctx.createBufferSource();
+            source.buffer = customBuffer;
+            const trackNode = engine.trackNodes.get(clip.trackId || 'sfx1') || { gainNode: engine.masterGain };
+            const clipGain = engine.ctx.createGain();
+            const vol = clip.volume !== undefined ? clip.volume : 1.0;
+            clipGain.gain.setValueAtTime(vol, engine.ctx.currentTime);
+            source.connect(clipGain);
+            clipGain.connect(trackNode.gainNode);
+            const offset = Math.max(0, currentSec - start);
+            source.start(0, offset);
+          } catch (audioErr) {
+            console.warn('[StudioEngine] Error playing custom buffer:', audioErr);
+          }
+        } else if (clip.sfxId && SFX_PRESETS[clip.sfxId]) {
           const trackNode = engine.trackNodes.get(clip.trackId || 'sfx1') || { gainNode: engine.masterGain };
           const clipGain = engine.ctx.createGain();
           clipGain.gain.setValueAtTime(clip.volume !== undefined ? clip.volume : 1.0, engine.ctx.currentTime);

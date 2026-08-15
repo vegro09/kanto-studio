@@ -1029,12 +1029,21 @@ export const SFX_CATALOG: SFXItem[] = [
 ];
 
 const cachedBuffers = new Map<string, AudioBuffer>();
+export const customAudioBufferCache = new Map<string, AudioBuffer>();
+
+export function registerCustomAudioBuffer(id: string, buffer: AudioBuffer) {
+  customAudioBufferCache.set(id, buffer);
+  cachedBuffers.set(id, buffer);
+}
 
 /**
  * Asynchronously renders an AudioBuffer for a given SFX preset ID
  * Used for timeline clips, waveforms, and offline WAV rendering
  */
 export async function getProceduralSFXBuffer(sfxId: string): Promise<AudioBuffer | null> {
+  if (customAudioBufferCache.has(sfxId)) {
+    return customAudioBufferCache.get(sfxId)!;
+  }
   if (cachedBuffers.has(sfxId)) {
     return cachedBuffers.get(sfxId)!;
   }
@@ -1058,4 +1067,5 @@ export async function getProceduralSFXBuffer(sfxId: string): Promise<AudioBuffer
   cachedBuffers.set(sfxId, renderedBuffer);
   return renderedBuffer;
 }
+
 
