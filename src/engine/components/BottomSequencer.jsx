@@ -22,7 +22,6 @@ import {
   Shapes,
   Sparkles
 } from 'lucide-react';
-import VoiceOverModal from './VoiceOverModal';
 import AudioWaveform from './AudioWaveform';
 import { buildMotionPathChunks } from '../utils/motionPathEngine';
 
@@ -175,9 +174,6 @@ export default function BottomSequencer({
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
   };
-
-  // STANDALONE VOICE-OVER MODAL STATE
-  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
 
   const trackRef = useRef(null);
   const pxPerSecond = 80;
@@ -547,18 +543,8 @@ export default function BottomSequencer({
             </button>
           </div>
 
-          {/* VOICE-OVER MODAL & EDITING TOOL BUTTONS */}
+          {/* UNDO / REDO HISTORY BUTTONS */}
           <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setIsVoiceModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1 bg-rose-950/70 hover:bg-rose-900 text-rose-200 border border-rose-700/60 rounded-lg font-bold text-xs transition-all shadow-sm active:scale-95"
-              title="Open Voice-Over Studio Modal"
-            >
-              <Mic className="w-3.5 h-3.5 text-rose-400" />
-              <span>Record Voice</span>
-            </button>
-
-            {/* UNDO / REDO HISTORY BUTTONS */}
             <button
               onClick={onUndo}
               className="p-1.5 bg-[#2A2529] hover:bg-[#353034] text-zinc-300 hover:text-[#F3F0E7] border border-white/10 rounded-lg transition-colors"
@@ -1100,14 +1086,6 @@ export default function BottomSequencer({
           ))}
         </div>
       </div>
-
-      {/* INDEPENDENT STANDALONE VOICE-OVER STUDIO MODAL */}
-      <VoiceOverModal
-        isOpen={isVoiceModalOpen}
-        onClose={() => setIsVoiceModalOpen(false)}
-        playheadSec={currentTimestampSec}
-        onAddAudioTrack={onAddAudioTrack}
-      />
     </footer>
   );
 }

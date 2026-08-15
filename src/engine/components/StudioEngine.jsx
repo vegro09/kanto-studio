@@ -6,6 +6,7 @@ import CameraViewMode from './CameraViewMode';
 import RightPanel from './RightPanel';
 import BottomSequencer from './BottomSequencer';
 import ExportModal from './ExportModal';
+import VoiceOverModal from './VoiceOverModal';
 import Toast from './Toast';
 import { 
   MousePointer, 
@@ -18,6 +19,7 @@ import {
   Eye, 
   EyeOff,
   Target,
+  Mic,
   PanelLeftOpen,
   PanelRightOpen
 } from 'lucide-react';
@@ -187,6 +189,7 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
   const [gridType, setGridType] = useState('lines');
   const [toast, setToast] = useState(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
 
   // TASK 4: AI BACKGROUND REMOVAL INTEGRATION (remove.bg REST API)
   const handleRemoveBackground = async (assetId) => {
@@ -298,7 +301,12 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
   const selectedShot = shots.find((s) => s.id === selectedShotId) || null;
 
   const showToast = (message, type = 'info') => {
-    setToast({ message, type });
+    // Suppress runtime info/action popups to prevent obscuring canvas & timeline tools
+    if (type === 'error') {
+      setToast({ message, type });
+    } else if (process.env.NODE_ENV === 'development') {
+      console.log(`[Toast Suppressed]: ${message}`);
+    }
   };
 
   // ─── KANTO TEXT ENGINE PLAYHEAD & TIMELINE SYNCHRONIZATION ──────────────────
@@ -1716,64 +1724,74 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
           </button>
         )}
 
-        {/* FLOATING QUICK TOOLBAR (TASK 3 - ABSOLUTE FLOATING OVER WORKSPACE BOTTOM AREA) */}
+        {/* FLOATING QUICK TOOLBAR (ABSOLUTE FLOATING OVER WORKSPACE BOTTOM AREA) */}
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
-          <div className="pointer-events-auto flex items-center gap-1 px-3 py-1 bg-[#2A2529]/95 backdrop-blur-xl border border-white/15 rounded-xl shadow-2xl scale-95 transition-all">
+          <div className="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 bg-[#1a1a1a]/95 backdrop-blur-xl border border-white/15 rounded-full shadow-2xl scale-95 transition-all select-none">
             {/* Pointer / Select Tool */}
             <button
               onClick={() => setIsPanMode(false)}
-              className={`px-2 py-1 rounded-lg text-[10px] font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+              className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                 !isPanMode 
-                  ? 'bg-[#F3F0E7] text-[#2A2529] shadow-xs font-bold' 
-                  : 'text-zinc-400 hover:text-[#F3F0E7] hover:bg-white/10'
+                  ? 'bg-white text-black shadow-xs font-bold' 
+                  : 'text-neutral-300 hover:text-white hover:bg-white/10'
               }`}
               title="Pointer / Select Tool (V)"
             >
               <MousePointer className="w-3.5 h-3.5" />
-              <span className="font-mono">Select</span>
+              <span>Select</span>
             </button>
 
             {/* Pan Tool (Hand Tool) */}
             <button
               onClick={() => setIsPanMode(!isPanMode)}
-              className={`px-2 py-1 rounded-lg text-[10px] font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+              className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                 isPanMode 
-                  ? 'bg-[#F3F0E7] text-[#2A2529] shadow-xs font-bold' 
-                  : 'text-zinc-400 hover:text-[#F3F0E7] hover:bg-white/10'
+                  ? 'bg-white text-black shadow-xs font-bold' 
+                  : 'text-neutral-300 hover:text-white hover:bg-white/10'
               }`}
               title="Pan / Hand Tool (H)"
             >
               <Hand className="w-3.5 h-3.5" />
-              <span className="font-mono">Pan</span>
+              <span>Pan</span>
             </button>
 
-            {/* Focus Camera (Compact Icon Tool) */}
+            {/* Focus Camera */}
             <button
               onClick={handleFocusOnCamera}
-              className="p-1.5 text-zinc-300 hover:text-[#F3F0E7] hover:bg-white/10 rounded-lg transition-all cursor-pointer flex items-center justify-center"
+              className="p-1.5 text-neutral-400 hover:text-white hover:bg-white/10 rounded-full transition-all cursor-pointer flex items-center justify-center"
               title="Focus Camera Dead-Center in Viewport (F)"
             >
               <Target className="w-3.5 h-3.5 text-emerald-400" />
             </button>
 
-            <div className="h-3.5 w-px bg-white/15 mx-0.5" />
-
             {/* Add Text Asset */}
             <button
               onClick={() => handleAddTextAsset()}
-              className="px-2 py-1 text-zinc-300 hover:text-[#F3F0E7] hover:bg-white/10 rounded-lg text-[10px] font-mono flex items-center gap-1 transition-all cursor-pointer"
+              className="px-2.5 py-1 text-neutral-300 hover:text-white hover:bg-white/10 rounded-full text-xs font-medium flex items-center gap-1 transition-all cursor-pointer"
               title="Add Kanto Text Engine Layer"
             >
-              <Type className="w-3.5 h-3.5 text-blue-400" />
+              <Type className="w-3.5 h-3.5 text-neutral-300" />
               <span>Text</span>
             </button>
 
-            <div className="h-3.5 w-px bg-white/15 mx-0.5" />
+            {/* NEW: Sleek Monochrome Record Voice Toggle */}
+            <div className="w-[1px] h-4 bg-neutral-700 mx-1" />
+
+            <button
+              onClick={() => setIsVoiceModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-neutral-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+              title="Record Voiceover"
+            >
+              <span className="w-2 h-2 rounded-full bg-red-500" />
+              <span>Record Voice</span>
+            </button>
+
+            <div className="w-[1px] h-4 bg-neutral-700 mx-1" />
 
             {/* Undo History */}
             <button
               onClick={handleUndo}
-              className="p-1 text-zinc-300 hover:text-[#F3F0E7] hover:bg-white/10 rounded-lg transition-all cursor-pointer"
+              className="p-1.5 text-neutral-400 hover:text-white hover:bg-white/10 rounded-full transition-all cursor-pointer"
               title="Undo Action (Ctrl+Z)"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -1782,21 +1800,21 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
             {/* Redo History */}
             <button
               onClick={handleRedo}
-              className="p-1 text-zinc-300 hover:text-[#F3F0E7] hover:bg-white/10 rounded-lg transition-all cursor-pointer"
+              className="p-1.5 text-neutral-400 hover:text-white hover:bg-white/10 rounded-full transition-all cursor-pointer"
               title="Redo Action (Ctrl+Y)"
             >
               <RotateCw className="w-3.5 h-3.5" />
             </button>
 
-            <div className="h-3.5 w-px bg-white/15 mx-0.5" />
+            <div className="w-[1px] h-4 bg-neutral-700 mx-1" />
 
             {/* Toggle Timeline Panel Visibility */}
             <button
               onClick={() => setIsTimelineVisible(!isTimelineVisible)}
-              className={`px-2 py-1 rounded-lg text-[10px] font-mono transition-all flex items-center gap-1 cursor-pointer ${
+              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all flex items-center gap-1 cursor-pointer ${
                 isTimelineVisible
-                  ? 'text-zinc-300 hover:text-[#F3F0E7] hover:bg-white/10'
-                  : 'bg-indigo-600 text-white font-bold'
+                  ? 'text-neutral-300 hover:text-white hover:bg-white/10'
+                  : 'bg-white/20 text-white font-bold'
               }`}
               title={isTimelineVisible ? "Hide Timeline Panel" : "Show Timeline Panel"}
             >
@@ -1845,6 +1863,14 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
           onToggleViewMode={(mode) => setViewMode(mode)}
         />
       )}
+
+      {/* Standalone Voice-Over Studio Modal */}
+      <VoiceOverModal
+        isOpen={isVoiceModalOpen}
+        onClose={() => setIsVoiceModalOpen(false)}
+        playheadSec={playbackProgress * (totalDuration || 10)}
+        onAddAudioTrack={handleAddAsset}
+      />
 
       {/* GPU-Accelerated MP4 Video Export Engine Modal */}
       <ExportModal
