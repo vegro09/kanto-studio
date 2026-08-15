@@ -24,6 +24,8 @@ import {
   PanelRightOpen
 } from 'lucide-react';
 import { DEFAULT_DEMO_PROJECT } from '../data/presetAssets';
+import { getProject, saveProject } from '../../lib/projectStore';
+import { useEngineStore } from '../../modules/KantoTextEngine';
 import { 
   ProceduralAudioEngine, 
   SFX_PRESETS, 
