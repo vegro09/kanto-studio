@@ -624,13 +624,14 @@ export default function WorkspaceCanvas({
       onMouseUp={handleMouseUp}
       onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
       onDrop={handleDirectCanvasDrop}
-      className={`flex-1 relative overflow-hidden bg-[#F3F0E7] select-none z-10 ${activeCursorClass}`}
+      className={`flex-1 relative overflow-hidden select-none z-10 ${activeCursorClass}`}
+      style={{ backgroundColor: sceneSettings?.bgColor || '#000000' }}
     >
-      {/* SOLID WHITE INFINITE CANVAS WRAPPER */}
+      {/* SOLID UNIFIED GLOBAL WORKSPACE BACKGROUND (UNDER EVERYTHING) */}
       <div
         className={`w-[8000px] h-[8000px] absolute top-0 left-0 transform-origin-top-left transition-transform duration-75 canvas-grid-bg ${textureClass}`}
         style={{
-          backgroundColor: sceneSettings.bgColor || '#FFFFFF',
+          backgroundColor: sceneSettings?.bgColor || '#000000',
           transform: `translate(${canvasView.x}px, ${canvasView.y}px) scale(${canvasView.scale})`,
           transformOrigin: '0 0'
         }}
@@ -806,7 +807,7 @@ export default function WorkspaceCanvas({
         })}
 
         {/* LAYER 1: VISUAL SCENE ASSETS (EXCLUDES AUDIO AND TEXT ASSETS MANAGED BY KANTO TEXT OVERLAY) */}
-        {sortedAssets.filter((a) => a && a.type !== 'audio' && a.type !== 'text' && a.category !== 'Audio' && a.category !== 'Text').map((asset, idx) => {
+        {sortedAssets.filter((a) => a && a.type !== 'audio' && a.type !== 'text' && a.type !== 'background' && !a.isBackgroundLayer && a.category !== 'Audio' && a.category !== 'Text').map((asset, idx) => {
           const isSelected = selectedAssetId === asset.id;
           const currentSec = (playbackProgress || 0) * (totalDuration || 10);
 

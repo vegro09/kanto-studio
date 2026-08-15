@@ -298,11 +298,14 @@ function renderSceneToCanvas(ctx, targetW, targetH, cam, assets, sceneSettings, 
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
 
+  // STEP 1: RESET TRANSFORMS & DRAW THE GLOBAL BACKGROUND (UNDER EVERYTHING)
   ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0); // Full target viewport
   ctx.fillStyle = sceneSettings?.bgColor || '#000000';
   ctx.fillRect(0, 0, targetW, targetH);
   ctx.restore();
 
+  // STEP 2: APPLY CAMERA MATRIX (PAN & ZOOM)
   const camW = (cam.width || 270) * (cam.scale || 1);
   const camH = (cam.height || 480) * (cam.scale || 1);
   const camCenterX = (cam.x || 0) + camW / 2;
@@ -311,35 +314,15 @@ function renderSceneToCanvas(ctx, targetW, targetH, cam, assets, sceneSettings, 
   const sceneTranslateX = targetW / 2 - camCenterX * renderScale;
   const sceneTranslateY = targetH / 2 - camCenterY * renderScale;
 
-  const sorted = [...(assets || [])].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
-
-  // PASS 1: Full-frame backgrounds
-  for (const asset of sorted) {
-    if (asset.type !== 'background' && !asset.isBackgroundLayer && asset.category !== 'Stock') continue;
-    if (asset.type === 'audio') continue;
-    ctx.save();
-    ctx.globalAlpha = asset.opacity !== undefined ? asset.opacity : 1.0;
-    const filt = getCanvasFilterString(asset.filterStyle);
-    if (filt && filt !== 'none') ctx.filter = filt;
-    const img = imageCache.get(asset.id);
-    if (img) {
-      try { ctx.drawImage(img, 0, 0, targetW, targetH); } catch (_) {}
-    } else if (asset.isSolidColor || (!asset.url && !asset.src)) {
-      ctx.fillStyle = asset.color || sceneSettings?.bgColor || '#000000';
-      ctx.fillRect(0, 0, targetW, targetH);
-    }
-    ctx.filter = 'none';
-    ctx.restore();
-  }
-
-  // PASS 2: Foreground in camera space
   ctx.save();
   ctx.translate(sceneTranslateX, sceneTranslateY);
   ctx.scale(renderScale, renderScale);
 
+  // STEP 3: RENDER ALL SCENE ELEMENTS (STRICTLY ON TOP OF BACKGROUND)
+  const sorted = [...(assets || [])].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+
   for (const asset of sorted) {
-    if (asset.type === 'background' || asset.isBackgroundLayer || asset.category === 'Stock') continue;
-    if (asset.type === 'audio' || asset.category === 'Audio' || asset.type === 'text' || asset.category === 'Text') continue;
+    if (asset.type === 'background' || asset.isBackgroundLayer || asset.type === 'audio' || asset.category === 'Audio' || asset.type === 'text' || asset.category === 'Text') continue;
 
     const startSec = typeof asset.startTimeSec === 'number' ? asset.startTimeSec : 0;
     let clipDuration = typeof asset.duration === 'number' && asset.duration > 0
