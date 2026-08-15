@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { PROTOTYPING_ASSETS } from '../utils/prototypingAssets';
 import { useEngineStore } from '../../modules/KantoTextEngine';
+import { AssetStudioAudio } from '../../modules/audio';
 
 // INTERACTIVE VIDEO LIBRARY CARD COMPONENT WITH LIVE HOVER PREVIEW & NATIVE ASPECT RATIO DETECTOR
 function VideoLibraryCard({ video, onAddAsset }) {
@@ -690,40 +691,10 @@ export default function LeftPanel({
             </div>
           )}
 
-          {/* TAB 3: AUDIO & VOICE-OVERS */}
+          {/* TAB 3: AUDIO & SFX STUDIO */}
           {activeTab === 'audio' && (
             <div className="space-y-3">
-              <p className="text-[11px] text-zinc-400">Audio Tracks & Voice-Overs:</p>
-              
-              {audioAssets.length > 0 ? (
-                <div className="grid grid-cols-1 gap-2">
-                  {audioAssets.map((aud) => (
-                    <div
-                      key={aud.id}
-                      onClick={() => onAddAsset(aud)}
-                      className="group relative rounded-xl border border-emerald-500/30 hover:border-emerald-400 bg-[#211C1F] p-2.5 cursor-pointer transition-all hover:scale-[1.01] flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-2.5 truncate pr-2">
-                        <div className="p-2 bg-emerald-950/80 rounded-lg border border-emerald-600/40 text-emerald-400 shrink-0">
-                          <Music className="w-4 h-4" />
-                        </div>
-                        <div className="truncate">
-                          <span className="text-xs font-semibold text-[#F3F0E7] block truncate">{aud.name}</span>
-                          <span className="text-[9px] font-mono text-emerald-400 block">{aud.duration || 3.0}s Audio</span>
-                        </div>
-                      </div>
-
-                      <span className="text-[10px] bg-emerald-900/60 text-emerald-200 px-2 py-0.5 rounded-md opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                        + Track
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-4 bg-[#211C1F] border border-white/10 rounded-xl text-center text-xs text-zinc-400 italic">
-                  No audio tracks recorded yet. Click "Record Voice" on the timeline or upload audio files above.
-                </div>
-              )}
+              <AssetStudioAudio onAddAudioClip={(clip) => onAddAsset(clip)} />
             </div>
           )}
 

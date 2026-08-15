@@ -44,7 +44,7 @@ import { VISUAL_FILTERS } from '../utils/canvasFilters';
 import BezierGraphEditor from './BezierGraphEditor';
 import { EASING_PRESETS } from '../utils/motionPathEngine';
 import { KantoTextInspector, useEngineStore } from '../../modules/KantoTextEngine';
-import AudioStudioPanel from './AudioStudioPanel';
+import { AudioInspectorRack } from '../../modules/audio';
 
 function BezierGraphPreview({ points }) {
   const [x1, y1, x2, y2] = points || [0.42, 0, 0.58, 1];
@@ -99,9 +99,6 @@ export default function RightPanel({
   isRemovingBg = false,
   onOpenExportModal,
   onAddModularPart,
-  assets = [],
-  onAddAudioTrack,
-  onOpenVoiceModal,
   playbackProgress = 0,
   totalDuration = 10
 }) {
@@ -109,17 +106,16 @@ export default function RightPanel({
   const activeTextLayer = textEngineLayers.find((l) => l.id === activeLayerId) || null;
   const isTextLayerSelected = Boolean(activeTextLayer);
 
-  // TOP LEVEL TAB SWITCHER ('visual' | 'audio')
-  const [activeMainTab, setActiveMainTab] = useState('visual');
+  const isAudioClipSelected = Boolean(selectedAsset?.type === 'audio' || selectedAsset?.category === 'Audio');
+  const [inspectorMode, setInspectorMode] = useState('CAMERA');
 
-  // CONTEXT-AWARE AUTO SWITCHING (SMART TRIGGER)
   useEffect(() => {
-    if (selectedAsset && (selectedAsset.type === 'audio' || selectedAsset.category === 'Audio')) {
-      setActiveMainTab('audio');
-    } else if (selectedAsset || isTextLayerSelected) {
-      setActiveMainTab('visual');
+    if (isAudioClipSelected) {
+      setInspectorMode('AUDIO');
     }
-  }, [selectedAsset?.id, selectedAsset?.type, isTextLayerSelected]);
+  }, [isAudioClipSelected, selectedAsset?.id]);
+
+  const isAudioActive = !isTextLayerSelected && (inspectorMode === 'AUDIO' || isAudioClipSelected);
 
   // Custom Presets State (Persisted in localStorage)
   const [customPresets, setCustomPresets] = useState(() => {
@@ -287,21 +283,35 @@ export default function RightPanel({
         {/* Panel Header */}
         <div className="p-3 border-b border-white/10 flex flex-col gap-2 bg-[#211C1F]">
           <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold text-[#F3F0E7] uppercase tracking-wider flex items-center gap-1.5">
-              {isTextLayerSelected ? (
-                <>
-                  <Type className="w-3.5 h-3.5 text-blue-400" /> Text Inspector
-                </>
-              ) : (
-                <>
-                  <Sliders className="w-3.5 h-3.5 text-[#F3F0E7]" /> Inspector
-                </>
-              )}
-            </h2>
+            <div className="flex items-center gap-1.5">
+              <Sliders className="w-3.5 h-3.5 text-[#F3F0E7]" />
+              <span className="text-xs font-bold tracking-widest text-white uppercase">INSPECTOR</span>
+            </div>
+
+            {/* Dynamic Context Tabs */}
+            <div className="flex items-center bg-[#181416] p-0.5 rounded-lg border border-white/10">
+              <button
+                type="button"
+                onClick={() => setInspectorMode('CAMERA')}
+                className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${
+                  !isAudioActive ? 'bg-[#2A2529] text-white shadow-sm border border-white/15' : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                CAMERA
+              </button>
+              <button
+                type="button"
+                onClick={() => setInspectorMode('AUDIO')}
+                className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${
+                  isAudioActive ? 'bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/40 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00E5FF]" />
+                AUDIO
+              </button>
+            </div>
+
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono text-zinc-400 bg-[#2A2529] px-2 py-0.5 rounded-md border border-white/10">
-                {isTextLayerSelected ? 'TEXT OBJECT' : selectedAsset ? (selectedAsset.type === 'modular_body_part' ? 'MODULAR RIG' : selectedAsset.type === 'text' ? 'TEXT' : selectedAsset.type === 'svg' ? 'SVG' : 'ASSET') : selectedShot ? 'SHOT' : 'CAMERA'}
-              </span>
               {isTextLayerSelected ? (
                 <button
                   onClick={() => selectLayer(null)}
@@ -324,55 +334,26 @@ export default function RightPanel({
 
           {/* EXPORT BUTTON */}
           <button
+            id="export-video-btn"
             onClick={onOpenExportModal}
             className="w-full py-1.5 px-3 bg-[#F3F0E7] hover:bg-white text-[#2A2529] rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md transition-all active:scale-95 cursor-pointer mt-0.5"
           >
             <Download className="w-4 h-4 text-[#2A2529]" />
             <span>Export Video (MP4)</span>
           </button>
-
-          {/* 1. TOP TAB SWITCHER IN THE RIGHT PANEL (STRICT MONOCHROME BLACK & WHITE) */}
-          <div className="grid grid-cols-2 gap-1 bg-[#1A1618] p-1 rounded-xl border border-white/15 my-0.5">
-            <button
-              onClick={() => setActiveMainTab('visual')}
-              className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                activeMainTab === 'visual'
-                  ? 'bg-white text-black shadow-sm font-black'
-                  : 'bg-transparent text-zinc-400 hover:text-white'
-              }`}
-            >
-              <Sliders className="w-3.5 h-3.5" />
-              <span>Visual / Inspector</span>
-            </button>
-
-            <button
-              onClick={() => setActiveMainTab('audio')}
-              className={`py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                activeMainTab === 'audio'
-                  ? 'bg-white text-black shadow-sm font-black'
-                  : 'bg-transparent text-zinc-400 hover:text-white'
-              }`}
-            >
-              <Music className="w-3.5 h-3.5" />
-              <span>Audio Studio</span>
-            </button>
-          </div>
         </div>
 
-        {activeMainTab === 'audio' ? (
-          <AudioStudioPanel
-            selectedAsset={selectedAsset}
-            onUpdateAsset={onUpdateAsset}
-            onDeleteAsset={onDeleteAsset}
-            assets={assets}
-            onAddAudioTrack={onAddAudioTrack}
-            playbackProgress={playbackProgress}
-            totalDuration={totalDuration}
-            onOpenVoiceModal={onOpenVoiceModal}
-          />
-        ) : isTextLayerSelected ? (
+        {isTextLayerSelected ? (
           <div className="flex-1 overflow-hidden h-full flex flex-col bg-[#0c0c0c] w-full">
             <KantoTextInspector />
+          </div>
+        ) : isAudioActive ? (
+          <div className="flex-1 overflow-y-auto p-3 custom-scrollbar bg-[#121212]">
+            <AudioInspectorRack
+              selectedClip={isAudioClipSelected ? selectedAsset : null}
+              updateClip={onUpdateAsset}
+              removeClip={onDeleteAsset}
+            />
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">

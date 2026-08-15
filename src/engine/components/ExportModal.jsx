@@ -6,6 +6,7 @@ import { getCanvasFilterString } from '../utils/canvasFilters';
 import { evaluateMotionPathAtTime } from '../utils/motionPathEngine';
 import { calculateInterpolatedState } from '../utils/modularCharacterEngine';
 import { useEngineStore, AnimationEngine, FontManager } from '../../modules/KantoTextEngine';
+import { AudioExportMixer } from '../../modules/audio';
 
 // SAFE TIMELINE INITIALIZER (FIXES "initTimeline is not defined" REFERENCE ERROR)
 export const initTimeline = (timelineRef) => {
@@ -656,14 +657,24 @@ export default function ExportModal({
   };
 
   // ── Software MediaRecorder fallback ─────────────────────────────────────────
-  const runSoftwareExport = (width, height, imageCache, getCameraAtTime, duration, fps) =>
-    new Promise((resolve, reject) => {
+  const runSoftwareExport = async (width, height, imageCache, getCameraAtTime, duration, fps) =>
+    new Promise(async (resolve, reject) => {
       try {
         const totalFrames = Math.max(Math.floor(duration * fps), 1);
         const canvas = document.createElement('canvas');
         canvas.width = width; canvas.height = height;
         const ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
         renderSceneToCanvas(ctx, width, height, getCameraAtTime(0), assets, sceneSettings, imageCache, 0, duration);
+
+        const audioClips = (assets || []).filter((a) => a.type === 'audio' || a.category === 'Audio');
+        let mixedAudio = null;
+        if (audioClips.length > 0) {
+          try {
+            mixedAudio = await AudioExportMixer.mixdownAudioTracks(audioClips, duration);
+          } catch (mixErr) {
+            console.warn('[ExportModal] Failed to mix audio tracks for export:', mixErr);
+          }
+        }
 
         let mimeType = 'video/webm;codecs=vp9';
         for (const t of ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8', 'video/webm']) {
@@ -672,6 +683,24 @@ export default function ExportModal({
         console.log(`[Software Export] mimeType=${mimeType}, fps=${fps}, totalFrames=${totalFrames}`);
 
         const stream = canvas.captureStream(fps);
+        let audioSourceNode = null;
+        let exportAudioCtx = null;
+
+        if (mixedAudio?.audioBuffer) {
+          try {
+            const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+            exportAudioCtx = new AudioCtxClass();
+            const dest = exportAudioCtx.createMediaStreamDestination();
+            audioSourceNode = exportAudioCtx.createBufferSource();
+            audioSourceNode.buffer = mixedAudio.audioBuffer;
+            audioSourceNode.connect(dest);
+            dest.stream.getAudioTracks().forEach((track) => stream.addTrack(track));
+            audioSourceNode.start(0);
+          } catch (audioErr) {
+            console.warn('[ExportModal] Could not attach audio tracks to recorder stream:', audioErr);
+          }
+        }
+
         const recorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: targetBitrate });
         const chunks = [];
 

@@ -24,6 +24,7 @@ import {
 import { DEFAULT_DEMO_PROJECT } from '../data/presetAssets';
 import { getProject, saveProject } from '../../lib/projectStore';
 import { useEngineStore } from '../../modules/KantoTextEngine';
+import { ProceduralAudioEngine, SFX_PRESETS } from '../../modules/audio';
 
 export default function StudioEngine({ projectId, onSaveStatusChange }) {
   // Core Application State - Restored from localStorage on initial mount
@@ -1465,6 +1466,47 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
     }
   }, [playbackProgress, isPlaying, shots, totalDuration]);
 
+  // AUDIVGHO Web Audio Engine realtime scheduler
+  const playedClipsRef = useRef(new Set());
+
+  useEffect(() => {
+    if (!isPlaying) {
+      playedClipsRef.current.clear();
+      return;
+    }
+
+    const currentSec = playbackProgress * Math.max(totalDuration, 1.0);
+    const audioClips = (assets || []).filter((a) => a.type === 'audio' || a.category === 'Audio');
+    const engine = ProceduralAudioEngine.getInstance();
+    engine.ensureContext().catch(() => {});
+
+    audioClips.forEach((clip) => {
+      const start = typeof clip.startTimeSec === 'number' ? clip.startTimeSec : 0;
+      const duration = typeof clip.duration === 'number' && clip.duration > 0 ? clip.duration : 1.0;
+      const isDue = currentSec >= start && currentSec <= start + duration;
+
+      if (isDue && !playedClipsRef.current.has(clip.id)) {
+        playedClipsRef.current.add(clip.id);
+
+        if (clip.sfxId && SFX_PRESETS[clip.sfxId]) {
+          const trackNode = engine.trackNodes.get(clip.trackId || 'sfx1') || { gainNode: engine.masterGain };
+          const clipGain = engine.ctx.createGain();
+          clipGain.gain.setValueAtTime(clip.volume !== undefined ? clip.volume : 1.0, engine.ctx.currentTime);
+          clipGain.connect(trackNode.gainNode);
+          SFX_PRESETS[clip.sfxId](engine.ctx, clipGain);
+        } else if (clip.src || clip.url) {
+          const audio = new Audio(clip.src || clip.url);
+          audio.volume = Math.max(0, Math.min(1.0, clip.volume !== undefined ? clip.volume : 1.0));
+          const offset = Math.max(0, currentSec - start);
+          if (offset < duration) {
+            audio.currentTime = offset;
+            audio.play().catch(() => {});
+          }
+        }
+      }
+    });
+  }, [playbackProgress, isPlaying, assets, totalDuration]);
+
   const handleTogglePlay = () => {
     if (shots.length === 0) {
       showToast('Capture at least 1 camera shot to play sequence', 'error');
@@ -1656,8 +1698,6 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
           customFonts={customFonts}
           onRemoveBackground={handleRemoveBackground}
           isRemovingBg={isRemovingBg}
-          assets={assets}
-          onAddAudioTrack={handleAddAudioTrack}
           onOpenExportModal={() => setIsExportModalOpen(true)}
           onAddModularPart={handleAddModularPart}
           playbackProgress={playbackProgress}
