@@ -6,7 +6,6 @@ import CameraViewMode from './CameraViewMode';
 import RightPanel from './RightPanel';
 import BottomSequencer from './BottomSequencer';
 import ExportModal from './ExportModal';
-import AudioRecordingStudio from './AudioRecordingStudio';
 import Toast from './Toast';
 import { 
   MousePointer, 
@@ -187,51 +186,6 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
   const [gridType, setGridType] = useState('lines');
   const [toast, setToast] = useState(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [isRecordingStudioOpen, setIsRecordingStudioOpen] = useState(false);
-
-  const handleOpenRecordingStudio = () => {
-    setIsRecordingStudioOpen(true);
-  };
-
-  const handleCloseRecordingStudio = () => {
-    setIsRecordingStudioOpen(false);
-  };
-
-  const handleAddSfxTrack = (sfx) => {
-    const playheadSec = (playbackProgress || 0) * (totalDuration || 10);
-    const newSfxAsset = {
-      id: `el_sfx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      name: sfx.name,
-      type: 'sfx',
-      category: 'SFX',
-      isSfx: true,
-      duration: sfx.duration || 1.5,
-      startTimeSec: Math.round(playheadSec * 10) / 10
-    };
-    setAssets((prev) => [...prev, newSfxAsset]);
-    showToast(`Added "${sfx.name}" to SFX Track`, 'success');
-  };
-
-  const handleAddFilterFxTrack = (filterName) => {
-    const playheadSec = (playbackProgress || 0) * (totalDuration || 10);
-    const newFilterAsset = {
-      id: `el_filter_fx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      name: `Filter: ${filterName}`,
-      filterName,
-      type: 'filter_fx',
-      category: 'FILTER_FX',
-      isFilterFx: true,
-      duration: 3.0,
-      startTimeSec: Math.round(playheadSec * 10) / 10
-    };
-    setAssets((prev) => [...prev, newFilterAsset]);
-    showToast(`Added "${filterName}" to Filter FX Track`, 'success');
-  };
-
-  const handleAddRecordedAudioTrack = (recordedAsset) => {
-    setAssets((prev) => [...prev, recordedAsset]);
-    showToast(`Added "${recordedAsset.name}" to Voice Track`, 'success');
-  };
 
   // TASK 4: AI BACKGROUND REMOVAL INTEGRATION (remove.bg REST API)
   const handleRemoveBackground = async (assetId) => {
@@ -1472,19 +1426,22 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
       const shotStart = cumulative;
       const shotEnd = cumulative + duration;
 
-      if (currentSec >= shotStart && currentSec <= shotEnd) {
-        const nextShot = shots[i + 1] || shot;
-        const progressInShot = (currentSec - shotStart) / duration;
-
+      if (currentSec >= shotStart && (currentSec < shotEnd || i === shots.length - 1)) {
         let targetX = shot.x;
         let targetY = shot.y;
         let targetScale = shot.scale;
 
-        if (shot.transitionType !== 'cut' && shots[i + 1]) {
-          const easeProgress = Math.sin((progressInShot * Math.PI) / 2);
-          targetX = shot.x + (nextShot.x - shot.x) * easeProgress;
-          targetY = shot.y + (nextShot.y - shot.y) * easeProgress;
-          targetScale = shot.scale + (nextShot.scale - shot.scale) * easeProgress;
+        // The VERY FIRST camera shot (Shot 1 / i === 0) remains 100% static and locked at its exact coordinates.
+        // Transitions only begin starting from Shot 2 (i > 0), smoothly moving from Shot i-1 to Shot i across Shot i's duration.
+        if (i > 0 && shot.transitionType !== 'cut') {
+          const prevShot = shots[i - 1];
+          const progressInShot = Math.max(0, Math.min(1, (currentSec - shotStart) / duration));
+          const easeInOutSine = (t) => -(Math.cos(Math.PI * t) - 1) / 2;
+          const easeProgress = easeInOutSine(progressInShot);
+
+          targetX = prevShot.x + (shot.x - prevShot.x) * easeProgress;
+          targetY = prevShot.y + (shot.y - prevShot.y) * easeProgress;
+          targetScale = prevShot.scale + (shot.scale - prevShot.scale) * easeProgress;
         }
 
         setCamera((prev) => {
@@ -1703,10 +1660,6 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
           onAddModularPart={handleAddModularPart}
           playbackProgress={playbackProgress}
           totalDuration={totalDuration}
-          onOpenRecordingStudio={handleOpenRecordingStudio}
-          onAddAudioTrack={handleAddRecordedAudioTrack}
-          onAddSfxTrack={handleAddSfxTrack}
-          onAddFilterFxTrack={handleAddFilterFxTrack}
         />
 
         {/* Floating Edge Toggle Tab - Reopen Right Inspector */}
@@ -1850,14 +1803,6 @@ export default function StudioEngine({ projectId, onSaveStatusChange }) {
           onToggleViewMode={(mode) => setViewMode(mode)}
         />
       )}
-
-      {/* Audio Recording Studio System Modal */}
-      <AudioRecordingStudio
-        isOpen={isRecordingStudioOpen}
-        onClose={handleCloseRecordingStudio}
-        playheadSec={(playbackProgress || 0) * (totalDuration || 10)}
-        onAddRecordedAudioTrack={handleAddRecordedAudioTrack}
-      />
 
       {/* GPU-Accelerated MP4 Video Export Engine Modal */}
       <ExportModal

@@ -136,9 +136,8 @@ function buildCameraEvaluator(shots, cameraBase) {
       if (clampedT <= segments[i].endT) { seg = segments[i]; break; }
     }
     const { from, to, startT, duration, transitionType } = seg;
-    if (transitionType === 'cut') {
-      const snap = (clampedT - startT) / duration < 0.5 ? from : to;
-      return { x: snap.x, y: snap.y, scale: snap.scale, width: fallback.width, height: fallback.height };
+    if (transitionType === 'cut' || from === to) {
+      return { x: to.x, y: to.y, scale: to.scale, width: fallback.width, height: fallback.height };
     }
     const p = easeInOutSine(Math.max(0, Math.min((clampedT - startT) / duration, 1)));
     return {

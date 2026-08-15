@@ -32,7 +32,7 @@ export default function CameraViewMode({
   if (Array.isArray(shots) && shots.length > 0) {
     let cumulativeTime = 0;
     let foundShot = null;
-    let nextShot = null;
+    let foundIndex = -1;
     let shotLocalProgress = 0;
 
     for (let i = 0; i < shots.length; i++) {
@@ -40,7 +40,7 @@ export default function CameraViewMode({
       const sDur = s.duration || 2.0;
       if (currentSec >= cumulativeTime && (currentSec < cumulativeTime + sDur || i === shots.length - 1)) {
         foundShot = s;
-        nextShot = shots[i + 1] || null;
+        foundIndex = i;
         shotLocalProgress = Math.min(1, Math.max(0, (currentSec - cumulativeTime) / sDur));
         break;
       }
@@ -48,13 +48,17 @@ export default function CameraViewMode({
     }
 
     if (foundShot) {
-      if (nextShot && foundShot.transitionType === 'smooth') {
-        // Smooth interpolation to next camera shot keyframe
-        activeCamX = foundShot.x + (nextShot.x - foundShot.x) * shotLocalProgress;
-        activeCamY = foundShot.y + (nextShot.y - foundShot.y) * shotLocalProgress;
-        activeCamScale = foundShot.scale + (nextShot.scale - foundShot.scale) * shotLocalProgress;
+      if (foundIndex > 0 && foundShot.transitionType !== 'cut') {
+        // Smooth transition from previous shot to current shot over the duration of this shot
+        const prevShot = shots[foundIndex - 1];
+        const easeInOutSine = (t) => -(Math.cos(Math.PI * t) - 1) / 2;
+        const easeProgress = easeInOutSine(shotLocalProgress);
+
+        activeCamX = prevShot.x + (foundShot.x - prevShot.x) * easeProgress;
+        activeCamY = prevShot.y + (foundShot.y - prevShot.y) * easeProgress;
+        activeCamScale = prevShot.scale + (foundShot.scale - prevShot.scale) * easeProgress;
       } else {
-        // Hold / Hard cut to active camera shot keyframe
+        // Shot 1 (foundIndex === 0) remains 100% static, or hard cut to current shot
         activeCamX = foundShot.x;
         activeCamY = foundShot.y;
         activeCamScale = foundShot.scale;
